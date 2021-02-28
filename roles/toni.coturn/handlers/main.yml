@@ -1,0 +1,10 @@
+---
+- name: restart coturn
+  service:
+    name: coturn
+    state: restarted
+
+- name: restart coturn docker
+  docker_compose:
+    project_src: "{{ user_path }}/coturn"
+    restarted: yes

@@ -1,0 +1,58 @@
+---
+user: "root"
+user_path: "/root"
+sip_provider_name: fonical
+sip_proxy: "sip.solucon.com"
+sip_phone_number: ""
+sip_username: ""
+sip_password: ""
+
+
+# defaultGuestPolicy -> Valid values are ALWAYS_ACCEPT, ALWAYS_DENY, ASK_MODERATOR
+bigbluebutton_config:
+  webcamsOnlyForModerator: 'true'
+  muteOnStart: 'true'
+  allowModsToUnmuteUsers: 'false'
+  allowStartStopRecording: 'false'
+  disableRecordingDefault: 'true' 
+  defaultGuestPolicy: 'ALWAYS_ACCEPT'
+  defaultMeetingDuration: '240'
+  appLogLevel: ERROR
+  defaultDialAccessNumber: "{{ sip_phone_number }}"
+  #defaultWelcomeMessage: 
+  defaultWelcomeMessageFooter: "Um dieser Konferenz per Telefon beizutreten, wählen Sie:<br>  %%DIALNUM%%<br>%%CONFNUM%% ist die PIN der Konferenz."
+
+bigbluebutton_webrtc:
+  conference-media-specs.H264.tias_content: "1500000"
+  conference-media-specs.H264.as_content: "1500"
+  conference-media-specs.VP8.tias_content: "1500000"
+  conference-media-specs.VP8.as_content: "1500"
+
+bbb_video_format: "mp4"
+bbb_root_target: "301 https://lb.{{ domain }}"
+#bbb_root_target: "307 return 307 /b"
+bbb_mount_tmpfs: 'true'
+bbb_retention_history: 1
+bbb_retention_unrecorded_days: 1
+bbb_retention_published_days: 10
+bbb_retention_log_history: 7
+bbb_log_record_core: "8"
+bbb_log_webrtc_sfu: "7"
+
+# verbose / error
+bbb_webrtc_loglevel: "error"
+
+#Freeeswitch loglevels ALER CRIT ERROR WARNING NOTICE INFO DEBUG
+bbb_freeswitch_loglevel: "DEBUG"
+bbb_freeswitch_stun: 'stun:turn.{{ domain }}'
+
+
+#https://doc-kurento.readthedocs.io/en/latest/features/logging.html
+bbb_kurento_GST_DEBUG: "1,Kurento*:4,kms*:4,sdp*:4,webrtc*:4,*rtpendpoint:4,rtp*handler:4,rtpsynchronizer:4,agnosticbin:4,KurentoWebSocketTransport:5"
+
+#Red5 log levels  OFF ERROR WARN INFO DEBUG TRACE
+bbb_red5_loglevel: "ERROR"
+
+#This IP will be used for node_exporter if Wireguard role is not used
+wg_server_ip: "127.0.0.1"
+

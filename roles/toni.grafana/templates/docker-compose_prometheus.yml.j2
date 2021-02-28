@@ -1,0 +1,30 @@
+---
+version: '3.7'
+
+networks:
+  stack_com:
+    external: true
+
+services:
+  prometheus:
+    container_name: prometheus
+    #check for latest: https://hub.docker.com/r/prom/prometheus/tags
+    image: prom/prometheus:v2.21.0
+    networks:
+      - stack_com
+    user: root
+    command:
+      # Default commands from Dockerfile
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      # Our custom commands - metrics will be stored for 365 days
+      - "--storage.tsdb.retention.time=365d"
+      #- "--web.listen-address=127.0.0.1:9090"
+    volumes:
+      - "./prometheus.yml:/etc/prometheus/prometheus.yml"
+      - "{{ prometheus_data_dir }}:/prometheus"
+    restart: unless-stopped
+
+

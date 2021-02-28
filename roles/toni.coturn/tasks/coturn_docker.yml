@@ -1,0 +1,75 @@
+---
+- name: Create coturn directory
+  file:
+    state: directory
+    path: "{{ user_path }}/coturn"
+
+- name: register facts for use in client
+  set_fact:
+    turn_inet_ip: "{{ ansible_default_ipv4.address|default(ansible_all_ipv4_addresses[0]) }}"
+    stun_port: "{{ proxy_stun_port }}"
+    turn_port: "{{ proxy_turn_port }}"
+    turn_hostname: "{{ inventory_hostname }}"
+    turn_secret: "{{ turn_secret }}"
+
+# - debug:
+#     msg:
+#       "turn_hostname": "{{ hostvars[inventory_hostname]['turn_hostname'] }}"
+
+- name: Copy snippets
+  include_role:
+    name: toni.openresty
+    tasks_from: snippets
+  vars:  
+    nginx_ssl_stream_config: true
+    nginx_snippets:
+      - { srcname: "ssl.conf.j2", destname: "ssl.conf" }
+
+- name: Deploy docker-compose file
+  template:
+    src: docker_compose_turn.conf.j2
+    dest: "{{ user_path }}/coturn/docker-compose.yml"
+  notify: restart coturn docker
+
+- name: Copy nginx stream config
+  template:
+    src: "nginx.conf.j2"
+    dest: /etc/nginx/nginx.conf
+
+- name: Copy coturn config-file
+  template:
+    src: "turnserver.conf.j2"
+    dest: "{{ user_path }}/coturn/turnserver.conf"
+  vars:  
+    nginx_ssl_stream_config: true
+    external_ip_mapping: "{{ turn_inet_ip }}/{{ internal_nginx_docker_ip }}"
+    listening_ip: "10.10.10.3"
+
+- name: Copy coturn config-file
+  template:
+    src: "turnserver.conf.j2"
+    dest: "{{ user_path }}/coturn/turnserver2.conf"
+  vars:  
+    nginx_ssl_stream_config: true
+    external_ip_mapping: "{{ turn_inet_ip }}"
+    listening_ip: "10.10.10.4"
+
+- name: Copy coturn config-file
+  template:
+    src: "turnserver.conf.j2"
+    dest: "{{ user_path }}/coturn/turnserver3.conf"
+  vars:  
+    nginx_ssl_stream_config: true
+    external_ip_mapping: "{{ turn_inet_ip }}"
+    listening_ip: "10.10.10.5"
+
+- name: start coturn docker
+  docker_compose:
+    project_src: "{{ user_path }}/coturn"
+    restarted: yes    
+
+- name: Launch docker-compose
+  when: nginx_run_as is not defined or nginx_run_as=="docker" or nginx_run_as=="streamproxy"
+  docker_compose:
+    project_src: "{{ user_path }}/openresty"
+    restarted: yes

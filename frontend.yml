@@ -1,0 +1,23 @@
+---
+- hosts: frontend
+  name: Include certificate facts
+  tasks:
+  - name: Certificate paths as facts
+    import_role: { name: toni.certificates, tasks_from: facts }
+
+- hosts: frontend
+  remote_user: root
+  gather_facts: yes
+  roles:
+    - toni.openresty
+    - toni.greenlight
+    - { role: toni.grafana, when: configure_monitoring|bool }
+    - toni.keycloak
+  vars:
+#   - existing_certs: false
+#   - configure_monitoring: false
+#   - nginx_subdomain: "grafana."
+   - auth_provider_domain: "key.{{ domain }}"
+   - auth_bypass: false
+   - force_images: "True"
+   - letsencrypt_email: "jidumailer@gmail.com"

@@ -1,0 +1,25 @@
+---
+# - hosts: turn
+#   name: Include certificate facts
+#   tasks:
+#   - name: Certificate paths as facts
+#     import_role: { name: toni.certificates, tasks_from: facts }
+    
+- name: CoTurn Server
+  hosts: turn
+  become: yes
+  roles:
+    - toni.openresty
+    - toni.coturn
+  vars:
+   - auth_bypass: "True"
+   - force_images: "True"
+   #- existing_certs: false
+   - letsencrypt_email: "jidumailer@gmail.com"
+#   - turn_hostname: turn.{{ domain }}
+   - nginx_run_as: "streamproxy"
+   - stun_port: 8080
+   - turn_port: 7443
+   - nginx_docker_ports: [ "80:80/udp", "80:80/tcp", "443:443/tcp" ]
+#   - network_mode: "host"
+   - docker_network_ip: 10.10.10.2

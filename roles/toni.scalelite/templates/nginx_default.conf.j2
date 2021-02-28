@@ -1,0 +1,90 @@
+lua_code_cache on;
+lua_package_path "/usr/local/openresty/?.lua;;";
+lua_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+lua_ssl_verify_depth 5;  # cache for discovery metadata documents
+lua_shared_dict discovery 1m;
+lua_shared_dict sessions 10m;
+# cache for JWKs
+lua_shared_dict jwks 1m;
+
+#based on https://github.com/nginx-proxy/nginx-proxy
+# If we receive X-Forwarded-Proto, pass it through; otherwise, pass along the
+# scheme used to connect to this server
+map $http_x_forwarded_proto $proxy_x_forwarded_proto {
+  default $http_x_forwarded_proto;
+  ''      $scheme;
+}
+# If we receive X-Forwarded-Port, pass it through; otherwise, pass along the
+# server port the client connected to
+map $http_x_forwarded_port $proxy_x_forwarded_port {
+  default $http_x_forwarded_port;
+  ''      $server_port;
+}
+# If we receive Upgrade, set Connection to "upgrade"; otherwise, delete any
+# Connection header that may have been passed to this server
+map $http_upgrade $proxy_connection {
+  default upgrade;
+  '' close;
+}
+# Apply fix for very long server names
+server_names_hash_bucket_size 128;
+
+# Set appropriate X-Forwarded-Ssl header
+map $scheme $proxy_x_forwarded_ssl {
+  default off;
+  https on;
+}
+gzip_types text/plain text/css application/javascript application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;
+log_format  main  '$host $remote_addr - $remote_user [$time_local] "$request" '
+                  '$status $body_bytes_sent "$http_referer" '
+                  '"$http_user_agent" "$http_x_forwarded_for"';
+
+
+#https://adminforge.de/webserver/ip-adressen-in-apache2-und-nginx-anonymisieren/
+map $remote_addr $ip_anonym1 {
+  default 0.0.0;
+  "~(?P<ip>(\d+)\.(\d+))\.(\d+)\.\d+" $ip;
+  "~(?P<ip>[^:]+:[^:]+):" $ip;
+}
+
+map $remote_addr $ip_anonym2 {
+  default .0.0;
+  "~(?P<ip>(\d+)\.(\d+)\.(\d+))\.\d+" .0.0;
+   "~(?P<ip>[^:]+:[^:]+):" ::;
+}
+
+map $ip_anonym1$ip_anonym2 $ip_anonymized {
+  default 0.0.0.0;
+  "~(?P<ip>.*)" $ip;
+}
+
+log_format anonymized '$ip_anonymized - $remote_user [$time_local] '
+  '"$request" $status $body_bytes_sent '
+  '"$http_referer" "$http_user_agent" "$http_x_forwarded_for"';
+
+{% if nginx_resolver is defined %}
+resolver {{ nginx_resolver }};
+{% endif %}
+
+# HTTP 1.1 support
+proxy_http_version 1.1;
+proxy_buffering off;
+
+# Mitigate httpoxy attack
+proxy_set_header Proxy "";
+
+server {
+        server_name _; # This is just an invalid value which will never trigger on a real hostname.
+        listen 80;
+        access_log /var/log/nginx/access.log main;
+        return 503;
+}
+server {
+        server_name _; # This is just an invalid value which will never trigger on a real hostname.
+        listen 443 ssl http2;
+        access_log /var/log/nginx/access.log main;
+        return 503;
+        ssl_session_tickets off;
+        ssl_certificate /etc/ssl/dummy-ssl-fallback.crt; 
+        ssl_certificate_key /etc/ssl/dummy-ssl-fallback.key;
+}

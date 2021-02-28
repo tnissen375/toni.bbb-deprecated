@@ -1,0 +1,12 @@
+---
+user_path: "/root"
+stun_port: 8080
+turn_port: 7443
+internal_nginx_docker_ip: "10.10.10.2"
+external_ip_mapping: ""
+proxy_stun_port: 80
+proxy_turn_port: 443
+nginx_run_as: "docker" # stack not supported/tested by now
+nginx_docker_stack_condition: "on-failure"
+container_cert_path: "/etc/letsencrypt/live/{{ turn_hostname }}/fullchain.pem"
+container_key_path: "/etc/letsencrypt/live/{{ turn_hostname }}/privkey.pem"

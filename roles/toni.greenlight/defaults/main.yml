@@ -1,0 +1,31 @@
+---
+user: "root"
+user_path: "/root"
+# openssk rand -hex 64
+#greenlight_secret_key:
+greenlight_server: ui.{{ domain }}
+greenlight_aliases: []
+
+greenlight_docker_image: bigbluebutton/greenlight:v2
+
+greenlight_db_docker: yes
+# only if greenlight_db_docker is false
+#greenlight_db_host:
+greenlight_db_user: greenlight
+greenlight_db_pass: f26b21223835cd8a
+greenlight_db_name: greenlight
+greenlight_logdir: /var/log/greenlight
+greenlight_pw_new_users: ydhtcatpbisnN4ao #should be unique on each installation
+
+greenlight_allow_accounts: "true"
+
+greenlight_report_url: https://github.com/bigbluebutton/greenlight/issues/new
+greenlight_help_url: https://docs.bigbluebutton.org/greenlight/gl-overview.html
+
+keycloak_access_group: "greenlight"
+
+container_cert_path: "/etc/ssl/dummy-ssl-fallback.crt"
+container_key_path: "/etc/ssl/dummy-ssl-fallback.key"
+
+
+

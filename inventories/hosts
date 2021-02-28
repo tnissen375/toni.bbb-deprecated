@@ -1,0 +1,37 @@
+#[local]
+#localhost   ansible_connection=local
+
+[builder]
+build.toni-media.com
+
+[bigbluebutton]
+bbb1.toni-media.com
+bbb2.toni-media.com
+
+[scalelite]
+lb.toni-media.com
+
+[frontend]
+ui.toni-media.com
+
+[wg_server]
+lb.toni-media.com
+
+[wg_clients]
+bbb1.toni-media.com wg_client_ip=10.8.0.2 nfs=true
+bbb2.toni-media.com wg_client_ip=10.8.0.3 nfs=true
+ui.toni-media.com wg_client_ip=10.8.0.4 
+turn.toni-media.com wg_client_ip=10.8.0.5
+
+[turn]
+turn.toni-media.com
+
+#greenlight needs to bypass on lb
+#lb needs to bypass on bbb
+#bbb need to bypass on self
+
+[auth_bypass]
+lb.toni-media.com
+bbb1.toni-media.com
+bbb2.toni-media.com
+ui.toni-media.com

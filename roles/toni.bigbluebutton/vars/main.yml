@@ -1,0 +1,6 @@
+---
+# vars file for roles/bigbluebutton
+#nginx_logformat: "{% if nginx_access_loglevel == 'production' %}'anonymized'{% else %}'main'{% endif %}"
+nginx_logfiles:
+ - { conffile: "/etc/nginx/sites-enabled/bigbluebutton", logdir: "/usr/local/openresty/nginx/logs" }
+ 

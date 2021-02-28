@@ -1,0 +1,36 @@
+---
+user: "root"
+user_path: "/root"
+nfs_server_dir: /mnt/scalelite-recordings
+openresty_image: "openresty:1.17.8.2-5-alpine-fat"
+or_scalelite_image: "scalelite_{{openresty_image}}"
+host_root_dir: "/root/scalelite"
+scalelite_server: "lb.{{ domain }}"
+container_cert_path: "/etc/ssl/dummy-ssl-fallback.crt"
+container_key_path: "/etc/ssl/dummy-ssl-fallback.key"
+nginx_conf_dir: "/etc/nginx"
+
+dir_exists:
+    - "{{ host_root_dir }}"
+    - "/var/www/letsencrypt"
+    - "/etc/letsencrypt/live"
+    - "{{ nginx_conf_dir }}/snippets"
+
+# openssl rand -hex 64
+#scalelite_secret_key:
+# openssl rand -hex 32
+#scalelite_loadbalancer_key:
+
+scalelite_db_docker: yes
+# only if scalelite_db_docker is false
+#scalelite_db_host:
+scalelite_db_user: scalelite
+scalelite_db_pass: f26b21223835cd8a
+scalelite_db_name: scalelite
+#scalelite_db_init: no
+
+scalelite_redis_docker: yes
+# only if scalelite_db_redis is false
+#scalelite_redis_host:
+
+

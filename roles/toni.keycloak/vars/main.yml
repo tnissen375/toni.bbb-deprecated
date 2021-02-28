@@ -1,0 +1,3 @@
+---
+nginx_logfiles:
+ - { conffile: "/etc/nginx/conf.d/keycloak.conf", logdir: "/usr/local/openresty/nginx/logs" }

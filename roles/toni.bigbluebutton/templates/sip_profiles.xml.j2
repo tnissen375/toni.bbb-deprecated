@@ -1,0 +1,10 @@
+<include>
+  <gateway name="{{ sip_provider_name }}">
+    <param name="proxy" value="{{ sip_proxy }}"/>
+    <param name="username" value="{{ sip_username }}"/>
+    <param name="password" value="{{ sip_password }}"/>
+    <param name="extension" value="{{ sip_phone_number }}"/>
+    <param name="register" value="true"/>
+    <param name="context" value="public"/>
+  </gateway>
+</include>

@@ -1,0 +1,36 @@
+---
+- name: Wireguard/NFS server setup
+  hosts: wg_server
+  become: yes
+  vars:
+    mode: "setup"
+    nfs_exports:
+#      - "/mnt                            10.8.0.0/24(fsid=0,rw,no_subtree_check,no_root_squash)"
+      - "{{ nfs_server_dir }}       10.8.0.0/24(fsid=0,rw,sync,no_subtree_check,hide,no_root_squash)"
+  roles:
+    - toni.wg-server
+    - { role: geerlingguy.nfs }
+ 
+- name: Wireguard/NFS client setup
+  hosts: wg_clients
+  become: yes
+  vars:
+     mode: "setup"
+  roles:
+    - toni.wg-client
+
+- name: Wireguard/NFS server startup
+  hosts: wg_server
+  become: yes
+  vars:
+    mode: "start"
+  roles:
+    - toni.wg-server
+
+- name: Wireguard/NFS client start
+  hosts: wg_clients
+  become: yes
+  vars:
+     mode: "start"
+  roles:
+     - toni.wg-client

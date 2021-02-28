@@ -1,0 +1,70 @@
+---
+#version: "3.8"
+version: "3.7"
+services:
+  coturn:
+    image: instrumentisto/coturn
+    volumes:
+      - /root/coturn/turnserver.conf:/etc/coturn/turnserver.conf
+      - /etc/nginx/ssl:/etc/nginx/ssl
+      - /etc/localtime:/etc/localtime:ro
+{% if existing_certs is defined and existing_certs|bool==false %}      
+      - /var/www/letsencrypt:/var/www/letsencrypt
+      - /etc/letsencrypt:/etc/letsencrypt
+{% endif %}
+    networks:
+      nginx_net:
+         ipv4_address: 10.10.10.3
+    command: ["--log-file=stdout"]
+{% if nginx_run_as is defined and nginx_run_as=="stack" %}
+    restart_policy:
+      condition: {{ nginx_docker_stack_condition }}
+{% else %}
+    restart: unless-stopped
+{% endif %}
+
+  coturn2:
+    image: instrumentisto/coturn
+    volumes:
+      - /root/coturn/turnserver2.conf:/etc/coturn/turnserver.conf
+      - /etc/nginx/ssl:/etc/nginx/ssl
+      - /etc/localtime:/etc/localtime:ro
+{% if existing_certs is defined and existing_certs|bool==false %}      
+      - /var/www/letsencrypt:/var/www/letsencrypt
+      - /etc/letsencrypt:/etc/letsencrypt
+{% endif %}
+    networks:
+      nginx_net:
+         ipv4_address: 10.10.10.4
+    command: ["--log-file=stdout"]
+{% if nginx_run_as is defined and nginx_run_as=="stack" %}
+    restart_policy:
+      condition: {{ nginx_docker_stack_condition }}
+{% else %}
+    restart: unless-stopped
+{% endif %}
+
+  coturn3:
+    image: instrumentisto/coturn
+    volumes:
+      - /root/coturn/turnserver3.conf:/etc/coturn/turnserver.conf
+      - /etc/nginx/ssl:/etc/nginx/ssl
+      - /etc/localtime:/etc/localtime:ro
+{% if existing_certs is defined and existing_certs|bool==false %}      
+      - /var/www/letsencrypt:/var/www/letsencrypt
+      - /etc/letsencrypt:/etc/letsencrypt
+{% endif %}
+    networks:
+      nginx_net:
+         ipv4_address: 10.10.10.5
+    command: ["--log-file=stdout"]
+{% if nginx_run_as is defined and nginx_run_as=="stack" %}
+    restart_policy:
+      condition: {{ nginx_docker_stack_condition }}
+{% else %}
+    restart: unless-stopped
+{% endif %}
+
+networks:
+  nginx_net:
+    external: true

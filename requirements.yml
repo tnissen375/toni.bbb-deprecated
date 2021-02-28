@@ -1,0 +1,25 @@
+---
+roles:
+ - name: geerlingguy.pip
+ - name: n0emis.bigbluebutton
+   src: https://github.com/n0emis/ansible-role-bigbluebutton.git
+ - name: geerlingguy.nodejs
+   version: 5.1.1
+ - name: geerlingguy.docker   
+ - name: toni.certificates
+   src: git+https://github.com/tnissen375/toni.certificates.git
+ - name: atosatto.docker-swarm
+ - name: geerlingguy.ntp
+ - name: geerlingguy.nfs 
+ - name: toni.docker
+   src: git+https://github.com/tnissen375/toni.docker.git
+ - name: toni.openresty
+   src: git+https://github.com/tnissen375/toni.openresty.git
+ - name: toni.buildimages
+   src: git+https://github.com/tnissen375/toni.buildimages.git
+ - name: toni.wg-client
+   src: git+https://github.com/tnissen375/toni.wg-client
+ - name: toni.wg-server
+   src: git+https://github.com/tnissen375/toni.wg-server.git 
+ - name: toni.base
+   src: git+https://github.com/tnissen375/toni.base.git

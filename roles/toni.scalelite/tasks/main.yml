@@ -1,0 +1,240 @@
+---
+- name: Include facts from imagebuilder
+  import_role:
+    name: toni.buildimages
+    tasks_from: facts
+
+- name: Open UFW Ports 
+  import_role:
+    name: toni.openresty
+    tasks_from: firewall
+
+- name: Remove nginx on host // error is ok
+  service:
+    name: nginx
+    state: stopped
+    enabled: no
+  register: result
+  ignore_errors: yes
+  failed_when:
+    - result.changed == false
+    - '"requested service" not in result.msg'  
+
+- file:
+    state: directory
+    path: "{{ item }}"
+    recurse: yes
+  loop:
+    "{{ dir_exists }}"
+
+- name: remove images
+  when: force_images|default(false)
+  docker_image:
+    name: "{{ image_scalelite }}"
+    force_absent: yes
+    state: absent    
+
+- name: Register image file
+  stat:
+    path: "{{ user_path }}/{{ image_file_scalelite }}"
+  register: image_file
+
+- name: copy tarball to host
+  when: not image_file.stat.exists or force_images|default(false)
+  copy:
+    src: "{{ user_path }}/{{ image_file_scalelite }}"
+    dest: "{{ user_path }}/{{ image_file_scalelite }}"
+
+- name: load image from tarball
+  docker_image:
+    name: "{{ image_scalelite }}"
+    load_path: "{{ user_path }}/{{ image_file_scalelite }}"
+    source: load
+
+- name: Deploy nginx.conf
+  template:
+    src: nginx.conf.j2
+    dest: "{{ user_path }}/scalelite/nginx.conf"
+
+- name: Copy snippets
+  include_role:
+    name: toni.openresty
+    tasks_from: snippets
+  vars:  
+    keycloak_access_group: "bbb"
+    nginx_snippets:
+      - { srcname: "auth.conf.j2", destname: "auth.conf" }
+      - { srcname: "logs.conf.j2", destname: "logs.conf" }
+
+- name: Deploy default conf
+  template:
+    src: roles/scalelite/templates/nginx_default.conf.j2
+    dest: "{{ user_path }}/scalelite/default.conf"
+
+- name: Configure nginx logs
+  include_role:
+    name: toni.openresty
+    tasks_from: logs
+  vars:
+    disablenotify: true
+    nginx_logfiles:
+      - { conffile: "{{ user_path }}/scalelite/logs.conf", logdir: "/usr/local/openresty/nginx/logs" }
+
+- name: Check for required variables
+  loop:
+  - scalelite_secret_key
+  - scalelite_loadbalancer_key
+  when: item not in vars
+  fail:
+    msg: "missing required variable: {{ item }}"
+
+- name: Create scalelite group
+  loop: "{{ groups.bigbluebutton }}"
+  delegate_to: "{{ item }}"
+  group:
+    name: scalelite-spool
+    gid: 2000
+
+- name: Add bigbluebutton user to group
+  loop: "{{ groups.bigbluebutton }}"
+  delegate_to: "{{ item }}"
+  user:
+    name: bigbluebutton
+    groups: scalelite-spool
+    append: yes
+
+- name: Create spool directory
+  file:
+    state: directory
+    path: "{{ nfs_server_dir }}/var/bigbluebutton/spool"
+    owner: 1000
+    group: 2000 
+    mode: '0775'
+    recurse: yes
+
+- name: Create working directory
+  file:
+    state: directory
+    path: "{{ nfs_server_dir }}/var/bigbluebutton/recording/scalelite"
+    owner: 1000
+    group: 2000
+    mode: '0775'
+    recurse: yes
+
+- name: Create published directory
+  file:
+    state: directory
+    path: "{{ nfs_server_dir }}/var/bigbluebutton/published"
+    owner: 1000
+    group: 1000
+    mode: '0775'
+    recurse: yes
+
+- name: Create unpublished directory
+  file:
+    state: directory
+    path: "{{ nfs_server_dir }}/var/bigbluebutton/unpublished"
+    owner: 1000
+    group: 1000
+    mode: '0775'
+    recurse: yes
+
+# https://github.com/blindsidenetworks/scalelite/blob/master/bigbluebutton/README.md
+- name: Deploy scalelite_post_publish.rb script
+  loop: "{{ groups.bigbluebutton }}"
+  delegate_to: "{{ item }}"
+  copy:
+    src: scalelite_post_publish.rb
+    dest: /usr/local/bigbluebutton/core/scripts/post_publish
+
+- name: Deploy scalelite scalelite.yml file
+  loop: "{{ groups.bigbluebutton }}"
+  delegate_to: "{{ item }}"
+  template:
+    src: scalelite.yml.j2
+    dest: /usr/local/bigbluebutton/core/scripts/scalelite.yml
+
+- name: Remove all docker logs by cron file under /etc/cron.d
+  when: enable_clear_dockerlogs|bool==true
+  cron:
+    name: Remove logs
+    weekday: "0"
+    minute: "0"
+    hour: "3"
+    user: root
+    job: "truncate -s 0 /var/lib/docker/containers/*/*-json.log"
+
+- name: Deploy certpath snippet
+  template:
+    src: ./snippets/certpath.conf.j2
+    dest: "{{ nginx_conf_dir }}/snippets/certpath.conf"
+
+- name: Generate docker-compose.yml file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ user_path }}/scalelite/docker-compose.yml"
+
+- name: Launch docker-compose
+  docker_compose:
+    project_src: "{{ user_path }}/scalelite"
+    restarted: yes
+ 
+- name: Sleep for 20 seconds and continue
+  wait_for:
+    timeout: 10
+  delegate_to: localhost
+
+# https://stackoverflow.com/questions/10301794/difference-between-rake-dbmigrate-dbreset-and-dbschemaload
+- name: Initialize Scalelite database
+  when: scalelite_db_init|bool
+  command: >-
+    docker exec -i scalelite-api bin/rake
+    {% if scalelite_db_docker %}db:create{% endif %} db:schema:load db:seed
+  ignore_errors: yes
+
+- name: Retrieve bigbluebutton secret keys
+  delegate_to: "{{ item }}"
+  shell: 'bbb-conf --secret | grep -o "Secret:.*$" | grep -o "[^ ]*$"'
+  register: secret_keys
+  loop: "{{ groups.bigbluebutton }}"
+
+- name: Retrieve servers status
+  loop: "{{ groups.bigbluebutton }}"
+  shell: >-
+    docker exec scalelite-api
+    ./bin/rake servers
+    | grep -o "{{ item }}"
+  ignore_errors: yes
+  register: servers
+
+- name: Register the host to scalelite
+  loop: "{{ secret_keys.results|flatten(levels=1) }}"
+  loop_control:
+    index_var: index
+  when: servers.results[index].rc != 0
+  include_tasks: register.yml
+  vars:
+    hostname: "{{ item.item }}"
+    key: "{{ item.stdout }}"
+
+- name: set cert facts 
+  when: not existing_certs|bool
+  include_role:
+    name: toni.certificates
+    tasks_from: certbot_facts
+  vars:
+    certbot_server: "{{ scalelite_server }}"
+  
+# - debug:
+#     var: not existing_certs|bool and certbot_cert_exists|bool
+
+- name: Deploy certpath snippet
+  when: not existing_certs|bool and certbot_cert_exists|bool
+  template:
+    src: ./snippets/certpath.conf.j2
+    dest: "{{ nginx_conf_dir }}/snippets/certpath.conf"
+
+- name: Launch docker-compose
+  docker_compose:
+    project_src: "{{ user_path }}/scalelite"
+    restarted: yes

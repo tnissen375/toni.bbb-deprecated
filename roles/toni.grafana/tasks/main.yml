@@ -1,0 +1,167 @@
+---
+- name: Create grafana directory
+  file:
+    state: directory
+    path: "{{ user_path }}/grafana"
+
+- name: Create grafana directory
+  file:
+    state: directory
+    path: "{{ grafana_data_dir }}"
+    owner: "472"
+    group: "472"
+    mode: 0755
+
+#keycloak_access_group cannot be used in Copy snippets, value gets evaluated in included role with "wrong" value
+- name: set facts
+  set_fact:
+    access_group: "{{ keycloak_access_group }}"
+
+- name: Copy snippets
+  include_role:
+    name: toni.openresty
+    tasks_from: snippets
+  vars:  
+    keycloak_access_group: "{{ access_group }}"
+    nginx_snippets:
+      - { srcname: "auth.conf.j2", destname: "{{ access_group }}_auth.conf" }
+
+- name: Deploy docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ user_path }}/grafana/docker-compose.yml"
+  notify: restart grafana
+
+- file:
+    state: directory
+    path: "{{ grafana_prov_dir }}/datasources"
+    owner: "472"
+    group: "472"
+
+- file:
+    state: directory
+    path: "{{ grafana_prov_dir }}/dashboards"
+    owner: "472"
+    group: "472"
+
+- file:
+    state: directory
+    path: "{{ grafana_prov_dir }}/notifiers"
+    owner: "472"
+    group: "472"
+
+- file:
+    state: directory
+    path: "{{ grafana_prov_dir }}/plugins"
+    owner: "472"
+    group: "472"
+
+- name: Check if dashboard files exist
+  stat:
+    path: "{{ grafana_prov_dir }}/dashboards/all_servers.json"
+  register: dashboard_files
+
+#https://github.com/rfrail3/grafana-dashboards/tree/master/prometheus
+#https://github.com/greenstatic/bigbluebutton-exporter/blob/master/extras/dashboards/server_instance_node_exporter.json
+- name: Download dashboards using GET_URL
+  when: not dashboard_files.stat.exists
+  get_url:
+    url: "{{ item.url }}"
+    dest: "{{ grafana_prov_dir }}/dashboards/{{ item.filename }}"
+    owner: "472"
+    group: "472"
+    mode: 0640
+#    mode : 0755
+  ignore_errors: yes
+  loop:
+    - { url: 'https://raw.githubusercontent.com/greenstatic/bigbluebutton-exporter/master/extras/dashboards/all_servers.json', filename: 'all_servers.json' }
+    - { url: 'https://raw.githubusercontent.com/greenstatic/bigbluebutton-exporter/master/extras/dashboards/server_instance_node_exporter.json', filename: 'server_instance_node_exporter.json' }
+    - { url: 'https://raw.githubusercontent.com/rfrail3/grafana-dashboards/master/prometheus/node-exporter-full.json', filename: 'node-exporter-full.json' }
+
+#- name: Deploy your own dashboard templates from local folder 
+#  template:
+#    src: "dashboards/{{ item }}"
+#    dest: "{{ grafana_prov_dir }}/dashboards/{{ item }}"
+#    owner: "472"
+#    group: "472"
+#    mode: 0640
+#  notify: restart grafana
+#  loop:
+#    - all_servers.json
+#    - server_instance_node_exporter.json
+#    - node-exporter-full_rev21.json
+
+- name: Create/Update grafana datasources
+  become: true
+  copy:
+    dest: "{{ grafana_prov_dir }}/datasources/prometheus.yml"
+    content: |
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          access: proxy
+          url: 'http://prometheus:9090'
+          basicAuth: false
+          isDefault: true
+    backup: false
+    owner: "472"
+    group: "472"
+    mode: 0640
+  notify: restart grafana
+
+- name: Create/Update Grafana dashboards
+  become: true
+  copy:
+    dest: "{{ grafana_prov_dir }}/dashboards/dashboards.yml"
+    content: |
+      apiVersion: 1
+      providers:
+        - name: 'default'
+          orgId: 1
+          type: file
+          disableDeletion: false
+          updateIntervalSeconds: 300 
+          options:
+            path: "/etc/grafana/provisioning/dashboards"
+    backup: false
+    owner: "472"
+    group: "472"
+    mode: 0640
+  notify: restart grafana
+
+- name: Deploy grafana vhost
+  template:
+    src: grafana_nginx.conf.j2
+    dest: "{{ nginx_conf_dir }}/conf.d/grafana.conf"
+  notify: restart nginx docker
+
+- name: Configure nginx logs
+  include_role:
+    name: toni.openresty
+    tasks_from: logs
+
+- name: Launch docker-compose
+  docker_compose:
+    build: yes
+    pull: yes
+    project_src: "{{ user_path }}/grafana"
+
+- name: Setup prometheus
+  import_tasks: prometheus.yml
+  when: configure_monitoring|bool
+
+- name: set cert facts 
+  when: not existing_certs|bool
+  include_role:
+    name: toni.certificates
+    tasks_from: certbot_facts
+  vars:
+    certbot_server: "{{ nginx_subdomain }}{{ nginx_domain }}"
+
+- name: Deploy grafana vhost
+  when: not existing_certs|bool and certbot_cert_exists|bool
+  template:
+    src: grafana_nginx.conf.j2
+    dest: "{{ nginx_conf_dir }}/conf.d/grafana.conf"
+  notify: restart nginx docker

@@ -1,0 +1,13 @@
+---
+grafana_image: "grafana/grafana:7.2.0"
+nginx_domain: "{{ domain }}"
+nginx_subdomain: "mon."
+# Add subpath to root_url if necessary
+grafana_root_url: "https://{{ nginx_subdomain }}{{ nginx_domain }}"
+grafana_data_dir: "/root/grafana/data"
+grafana_prov_dir: "/root/grafana/prov"
+#grafana_dashboard_dir: "/root/grafana/dashboard"
+grafana_aliases: []
+prometheus_data_dir: "/root/prometheus/data"
+container_cert_path: "/etc/ssl/dummy-ssl-fallback.crt"
+container_key_path: "/etc/ssl/dummy-ssl-fallback.key"

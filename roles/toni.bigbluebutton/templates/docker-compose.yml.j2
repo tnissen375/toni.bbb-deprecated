@@ -1,0 +1,19 @@
+version: '3.2'
+services:
+  bbb-exporter:
+    container_name: "bbb-exporter"
+    image: greenstatic/bigbluebutton-exporter:v0.6.0
+    network_mode: host
+    volumes:
+      # Can be removed if `RECORDINGS_METRICS_READ_FROM_DISK` is set to false (or omitted).
+      # See https://bigbluebutton-exporter.greenstatic.dev/exporter-user-guide/#optimizations for details.
+      - "/var/bigbluebutton:/var/bigbluebutton:ro"
+    environment:
+      BIND_IP: {{ wg_client_ip|d(wg_server_ip) }}
+      RECORDINGS_METRICS_READ_FROM_DISK: "true"
+#    ports:
+#      - 9688:9688
+    environment:
+      - "API_BASE_URL=https://{{ inventory_hostname }}/bigbluebutton/api/"
+      - "API_SECRET={{ bbb_secret.stdout }}"
+

@@ -1,0 +1,36 @@
+---
+# For prometheus-bigbluebutton-exporter on bbb backends
+- name: Retrieve bbb secret
+  tags: prometheus
+  shell: 'bbb-conf --secret | grep -o "Secret:.*$" | grep -o "[^ ]*$"'
+  register: bbb_secret
+
+- name: Create prometheues directory
+  file:
+    state: directory
+    path: "{{ user_path }}/bbb-exporter/"
+
+- name: Generate docker-compose.yml file for bbb-exporter
+  tags: bbb-exporter
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ user_path }}/bbb-exporter/docker-compose.yml"
+
+# - name: Launch docker-compose
+#   docker_compose:
+#     build: yes
+#     pull: yes
+#     project_src: "{{ user_path }}/bbb-exporter"
+
+- name: restart nginx service
+  service:
+    name: nginx
+    state: restarted
+
+- name: Remove bbb-exporter
+  shell: docker-compose 
+        -f {{ user_path }}/bbb-exporter/docker-compose.yml down
+
+- name: Launch bbb-exporter
+  shell: docker-compose 
+        -f {{ user_path }}/bbb-exporter/docker-compose.yml up -d

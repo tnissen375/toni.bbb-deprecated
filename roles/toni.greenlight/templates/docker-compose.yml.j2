@@ -1,0 +1,38 @@
+---
+version: '3.7'
+networks:
+  nginx_net:
+    external: true
+  greenlight:
+
+services:
+  greenlight:
+    entrypoint: [bin/start]
+    image: "{{ greenlight_docker_image }}"
+    container_name: greenlight-v2
+    env_file: .env
+    volumes:
+    - "{{ greenlight_logdir }}:/usr/src/app/log"
+#    - "./application_controller.rb:/usr/src/app/app/controllers/application_controller.rb"
+{% if greenlight_db_docker %}
+    depends_on:
+    - db
+{% endif %}
+    restart: unless-stopped
+    networks:
+      - nginx_net
+      - greenlight
+
+{% if greenlight_db_docker %}
+  db:
+    image: postgres:12
+    volumes:
+    - /var/lib/postgresql:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: "{{ greenlight_db_name }}"
+      POSTGRES_USER: "{{ greenlight_db_user }}"
+      POSTGRES_PASSWORD: "{{ greenlight_db_pass }}"
+    restart: unless-stopped
+    networks:
+      - greenlight
+{% endif %}

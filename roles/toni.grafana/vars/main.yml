@@ -1,0 +1,5 @@
+---
+nginx_logfiles:
+ - { conffile: "/etc/nginx/conf.d/grafana.conf", logdir: "/usr/local/openresty/nginx/logs" }
+keycloak_access_group: "grafana"
+keycloak_redirect: "https://mon.toni-media.com/" 

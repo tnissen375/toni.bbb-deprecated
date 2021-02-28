@@ -1,0 +1,6 @@
+---
+nginx_logformat: "{% if nginx_access_loglevel == 'production' %}'anonymized'{% else %}'main'{% endif %}"
+nginx_logfiles:
+ - { conffile: "/etc/nginx/conf.d/greenlight.conf", logdir: "/usr/local/openresty/nginx/logs" }
+keycloak_access_group: "greenlight"
+keycloak_redirect: "https://ui.toni-media.com/"

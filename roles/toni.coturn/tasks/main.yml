@@ -1,0 +1,12 @@
+---
+- import_tasks: firewall.yml
+  when: configure_firewall|bool and nginx_run_as is defined and not nginx_run_as=="streamproxy"
+
+- import_tasks: letsencrypt.yml
+  when: not existing_certs|bool
+
+- import_tasks: coturn.yml
+  when: nginx_run_as is defined and not nginx_run_as=="streamproxy"
+
+- import_tasks: coturn_docker.yml
+  when: nginx_run_as is defined and nginx_run_as=="streamproxy"

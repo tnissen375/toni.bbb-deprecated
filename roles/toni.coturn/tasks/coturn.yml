@@ -1,0 +1,57 @@
+---
+- name: Install coturn
+  apt:
+    name: coturn
+    update_cache: true
+    state: present
+
+#- name: Ensure coturn is in ssl-cert group
+#  user:
+#    name: turnserver
+#    groups: ssl-cert
+#    append: yes
+#    state: present
+
+- name: Enable coturn
+  service:
+    name: coturn
+    enabled: yes
+
+- name: Copy coturn config-file
+  template:
+    src: "turnserver.conf.j2"
+    dest: /etc/turnserver.conf
+  notify: restart coturn
+
+- name: Enable logrotate for coturn
+  template:
+    src: logrotate.coturn.j2
+    dest: /etc/logrotate.d/coturn  
+
+- name: Enable coturn server in defaults
+  lineinfile:
+    path: /etc/default/coturn
+    regexp: 'TURNSERVER_ENABLED'
+    line: 'TURNSERVER_ENABLED=1'
+  notify: restart coturn
+
+- name: Ensure coturn is started
+  service:
+    name: coturn
+    state: started
+
+- name: register facts for use in client
+  set_fact:
+    stun_port: "{{ stun_port }}"
+    turn_port: "{{ turn_port }}"
+    turn_hostname: "{{ inventory_hostname }}"
+    turn_secret: "{{ turn_secret }}"
+    turn_inet_ip: "{{ ansible_default_ipv4.address|default(ansible_all_ipv4_addresses[0]) }}"
+
+- name: Ensure coturn is restarted everyday @ 4 am
+  cron:
+    name: "restart coturn"
+    minute: "0"
+    hour: "4"
+    user: root
+    job: "systemctl restart coturn.service"

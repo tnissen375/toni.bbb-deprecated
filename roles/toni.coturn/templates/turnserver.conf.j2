@@ -1,0 +1,99 @@
+# https://community.hetzner.com/tutorials/install-turn-stun-server-on-debian-ubuntu-with-coturn
+
+# These are the two network ports used by the TURN server which the client
+# may connect to. We enable the standard unencrypted port 3478 for STUN,
+# as well as port 443 for TURN over TLS, which can bypass firewalls.
+listening-port={{ stun_port }}
+tls-listening-port={{ turn_port }}
+#verbose
+# If the server has multiple IP addresses, you may wish to limit which
+# addresses coturn is using. Do that by setting this option (it can be
+# specified multiple times). The default is to listen on all addresses.
+# You do not normally need to set this option.
+listening-ip={{ listening_ip }}
+
+# If the server is behind NAT, you need to specify the external IP address.
+# If there is only one external address, specify it like this:
+external-ip={{ external_ip_mapping }} 
+# If you have multiple external addresses, you have to specify which
+# internal address each corresponds to, like this. The first address is the
+# external ip, and the second address is the corresponding internal IP.
+#external-ip=172.17.19.131/10.0.0.11
+#external-ip=172.17.18.132/10.0.0.12
+
+# Fingerprints in TURN messages are required for WebRTC
+fingerprint
+
+# The long-term credential mechanism is required for WebRTC
+#lt-cred-mech
+
+# Configure coturn to use the "TURN REST API" method for validating time-
+# limited credentials. BigBlueButton will generate credentials in this
+# format. Note that the static-auth-secret value specified here must match
+# the configuration in BigBlueButton's turn-stun-servers.xml
+# You can generate a new random value by running the command:
+#   openssl rand -hex 16
+use-auth-secret
+static-auth-secret={{ turn_secret }}
+
+# If the realm value is unspecified, it defaults to the TURN server hostname.
+# You probably want to configure it to a domain name that you control to
+# improve log output. There is no functional impact.
+realm={{ turn_hostname }}
+
+# Configure TLS support.
+# Adjust these paths to match the locations of your certificate files
+
+{% if existing_certs is defined and existing_certs|bool==true %}
+  cert={{ lookup('vars', certificates.0 + '_pem_path') }}
+  pkey={{ lookup('vars', certificates.0 + '_key_path') }}
+{% else %}
+  cert=/etc/letsencrypt/live/{{ turn_hostname }}/fullchain.pem
+  pkey=/etc/letsencrypt/live/{{ turn_hostname }}/privkey.pem
+{% endif %}
+
+# Limit the allowed ciphers to improve security
+# Based on https://hynek.me/articles/hardening-your-web-servers-ssl-ciphers/
+cipher-list="ECDH+AESGCM:ECDH+CHACHA20:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:RSA+AESGCM:RSA+AES:!aNULL:!MD5:!DSS:!AESCCM"
+#Alternative https://community.hetzner.com/tutorials/install-turn-stun-server-on-debian-ubuntu-with-coturn
+#cipher-list="ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384"
+
+# Enable longer DH TLS key to improve security
+dh-file=/etc/nginx/ssl/dhp-4096.pem
+
+# All WebRTC-compatible web browsers support TLS 1.2 or later, so disable
+# older protocols
+no-sslv3
+no-tlsv1
+no-tlsv1_1
+
+# Per-user allocation quota.
+# default value is 0 (no quota, unlimited number of sessions per user).
+# This option can also be set through the database, for a particular realm.
+#
+#user-quota=4
+
+# Total allocation quota.
+# default value is 0 (no quota).
+# This option can also be set through the database, for a particular realm.
+#
+#total-quota=400
+
+# stdout doesn't work?
+#syslog
+#no-stdout-log
+#log-file=/var/tmp/turn.log
+#For privacy after testing
+#simple-log
+#log-file=/var/log/turnserver.log
+#log-file=/dev/null
+
+# Flag that can be used to disallow peers on well-known broadcast addresses (224.0.0.0 and above, and FFXX:*).
+# This is an extra security measure.
+#
+no-multicast-peers
+
+# Mobility with ICE (MICE) specs support.
+#
+#mobility
+no-cli

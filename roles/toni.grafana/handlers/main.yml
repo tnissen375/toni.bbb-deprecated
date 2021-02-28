@@ -1,0 +1,15 @@
+---
+- name: restart grafana
+  docker_compose:
+    project_src: "{{ user_path }}/grafana"
+    restarted: yes
+
+- name: restart prometheus
+  docker_compose:
+    project_src: "{{ user_path }}/prometheus"
+    restarted: yes
+
+- name: restart node-exporter
+  docker_compose:
+    project_src: "{{ user_path }}/node-exporter"
+    restarted: yes

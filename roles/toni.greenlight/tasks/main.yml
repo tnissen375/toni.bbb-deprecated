@@ -1,0 +1,120 @@
+---
+- name: Create greenlight directory
+  file:
+    state: directory
+    path: "{{ user_path }}/greenlight"
+
+- name: Deploy docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ user_path }}/greenlight/docker-compose.yml"
+
+- name: Deploy greenlight environment file
+  template:
+    src: env.j2
+    dest: "{{ user_path }}/greenlight/.env"
+
+- name: Deploy greenlight vhost
+  template:
+    src: greenlight.conf.j2
+    dest: "{{ nginx_conf_dir }}/conf.d/greenlight.conf"
+
+- name: Launch docker-compose
+  docker_compose:
+    build: yes
+    pull: yes
+    project_src: "{{ user_path }}/greenlight"
+
+- replace:
+    path: "{{ user_path }}/greenlight/docker-compose.yml"
+    regexp: '#'
+    replace: ''
+
+- name: Copy files from container
+  command: docker cp greenlight-v2:/usr/src/app/app/controllers/application_controller.rb /root/greenlight/
+
+- name: Insert user autologin code
+  blockinfile:
+    path: "{{ user_path }}/greenlight/application_controller.rb"
+    insertafter: '^\s*def current_user'
+    block: |
+        @current_user ||= User.includes(:role, :main_room).find_by(id: session[:user_id])
+         begin
+          logger.info "Support Request: #{request.headers["X-Auth-Email"]} is attempting to login."
+          pw = "{{ greenlight_pw_new_users }}"
+          u = {
+            name: request.headers["X-Auth-Username"] || 'dummy',
+            password: pw,
+            language: request.headers["X-Auth-Locale"],
+            email: request.headers["X-Auth-Email"],
+            role: request.headers["X-Auth-Role"] || "user",
+            provider: "greenlight"
+          }
+          # Create account if it doesn't exist
+          if !User.exists?(email: u[:email], provider: u[:provider])
+            user = User.create(name: u[:name], email: u[:email], password: u[:password],
+              provider: u[:provider], email_verified: true, accepted_terms: true)
+    
+            unless user.valid?
+              logger.error "Error creating user from Keycloak"
+            end
+
+            unless Role.exists?(name: u[:role], provider: u[:provider])
+              logger.error "Error creating user - invalid role from Keycloak"
+            end
+            user.set_role(u[:role])
+          else
+             user = User.include_deleted.find_by(email: request.headers["X-Auth-Email"])
+          end
+            @current_user=user
+          rescue => e
+            logger.error "Error authenticating via Keycloak: #{e}"
+         end
+    marker: "# {mark} ANSIBLE MANAGED"
+  notify: restart greenlight
+
+- name: Configure nginx logs
+  include_role:
+    name: toni.openresty
+    tasks_from: logs
+  
+- name: set facts
+  set_fact:
+    access_group: "{{ keycloak_access_group }}"
+
+- name: Copy snippets
+  include_role:
+    name: toni.openresty
+    tasks_from: snippets
+  vars:  
+    keycloak_access_group: "{{ access_group }}"
+    nginx_snippets:
+      - { srcname: "auth.conf.j2", destname: "{{ access_group }}_auth.conf" }
+
+- name: Sleep for 20 seconds and continue
+  wait_for:
+    timeout: 20
+  delegate_to: localhost
+
+- name: Create Admin Greenlight admin user
+  when: greenlight_create_admin|bool
+  shell: |
+    docker exec greenlight-v2 bundle exec rake user:create["admin",{{ greenlight_admin_email }},{{ greenlight_admin_password }},"admin"]
+  register: gl_adminuser
+
+- debug: msg="{{ gl_adminuser.stdout }}"
+
+- name: set cert facts 
+  when: not existing_certs|bool
+  include_role:
+    name: toni.certificates
+    tasks_from: certbot_facts
+  vars:
+    certbot_server: "{{ greenlight_server }}"
+
+- name: Deploy greenlight vhost
+  when: not existing_certs|bool and certbot_cert_exists|bool
+  template:
+    src: greenlight.conf.j2
+    dest: "{{ nginx_conf_dir }}/conf.d/greenlight.conf"
+  notify: restart nginx docker

@@ -1,0 +1,7 @@
+---
+# vars file for roles/scalelite
+nginx_logfiles:
+ - { conffile: "/root/docker/build/scalelite/nginx/conf.d/scalelite.common", logdir: "/usr/local/openresty/nginx/logs" }
+ - { conffile: "/root/docker/build/scalelite/nginx/conf.d/scalelite.conf", logdir: "/usr/local/openresty/nginx/logs" }
+ - { conffile: "/root/docker/build/scalelite/nginx/conf.d/scalelite-proxy.template", logdir: "/usr/local/openresty/nginx/logs" }
+ - { conffile: "/root/docker/build/scalelite/nginx/conf.d/scalelite-ssl.template", logdir: "/usr/local/openresty/nginx/logs" }

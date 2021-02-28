@@ -1,0 +1,5 @@
+---
+- name: restart greenlight
+  docker_compose:
+    project_src: "{{ user_path }}/greenlight"
+    restarted: yes

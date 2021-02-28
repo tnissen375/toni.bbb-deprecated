@@ -1,0 +1,32 @@
+---
+# /etc/bigbluebutton/nginx/sip.nginx
+
+# There is no Workaround for "Chain already exists" in Ubuntu 16 new version of ufw is not available for Ubuntu 16
+# https://launchpad.net/ubuntu/+source/ufw
+# https://tomschlick.com/2017/05/24/dealing-with-ufw-chain-already-exists
+# This bug was fixed in the package ufw - 0.36-0ubuntu0.18.04.1
+# https://bugs.launchpad.net/ufw/+bug/1204579
+# Workaround in Ubuntu 16 with ansible is to avoid UFW and use iptables directly
+# - name: Open additional tcp ports
+#   ufw:
+#     rule: allow
+#     port: "{{ item }}"
+#     proto: tcp
+#   with_items:
+#     - "7443" 
+
+- name: Open ports for freeswitch
+  copy:
+    content: |
+      [freeswitch]
+      title=freeswitch
+      description=freeswitch
+      ports=16384:32768/udp|7443/tcp
+    mode: 0644
+    dest: /etc/ufw/applications.d/freeswitch
+
+- name: Allow freeswitch
+  ufw:
+    rule: allow
+    name: freeswitch
+    state: enabled

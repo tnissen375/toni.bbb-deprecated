@@ -1,5 +1,6 @@
 # toni.bbb 2.5 alpha
-**Upgraded to BBB 2.5** - use at own risk
+**Upgraded to BBB 2.5** - use at own risk.
+
 Configuration is not "privacy by default" atm. You have to check all configuration files before using it in production.
 Documentation has to be renewed, configuration-options have to be checked.
 
@@ -60,6 +61,48 @@ BigBlueButton will be setup on 3 servers.
 Privacy related configurations can be be applied, SIP can enabled,...
 
 This setup has been working but the setup has to be with the roles I published on github. 
+
+## Settings
+
+In this setup several "one VM docker swarm maschines" are used as well as docker-composed machines. This setup is not for an real swarm cluster by now and will never be.
+For this reason the role used to setup single machine clusters needs to run more that once. (With different hosts file)
+It just happened... it works. If there is any further dev. i will migrate it complety to kubernetes.
+
+Edit ansible hosts files and adjust values to your needs:
+```bash
+nano ./inventories/bbb/hosts
+nano ./inventories/bbb_frontend/hosts # use same values except the 3 docker server groups at the end
+```
+
+Create a vault file with Password-string
+```bash
+nano ./vault
+```
+
+Edit role variables to fit your need:
+```bash
+nano ./inventories/bbb/group_vars/all.yml
+
+# Change all vault-encrypted values with your own
+ansible-vault encrypt_string --stdin-name 'VARIABLE NAME HERE' --vault-id bbb@vault
+```
+
+# Installation:
+Clone the repository
+
+'''
+# Enter cloned repo and install requirements
+ansible-galaxy install -r requirements.yml
+
+# Some docker images used by this role have to be build (Openresty, Scalelite)
+# This is NOT done by DevOps pipeline, images are build with ansible on a seperate machine and transfered by ansible
+ansible-playbook ./builder.yml -i ./inventories/bbb --vault-id bbb@vault
+
+# Install BBB (x*BBB, Coturn)
+ansible-playbook ./bbb.yml -i ./inventories/bbb --vault-id bbb@vault
+
+# Install frontend-server (Greenlight, Keycloak, Grafana, Prometheus)
+ansible-playbook ./frontend.yml -i ./inventories/bbb_frontend --vault-id bbb@vault
 
 ... not finished ...
 Next: publish role and describe configuration

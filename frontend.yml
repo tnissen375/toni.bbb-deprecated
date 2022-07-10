@@ -27,7 +27,7 @@
         force_images: true,
         nginx_run_as: 'stack',
         nginx_swarm_real_ip: true,
-        nginx_domain: "yd2m.com",
+        nginx_domain: "{{ domain }}",
         nginx_stack: "openresty",
         tags: [ host, openresty ]
       }
@@ -36,8 +36,8 @@
         auth_bypass: "true",
         nginx_run_as: 'stack',
         deploy_name: "key",
-        nginx_domain: yd2m.com,
-        keycloak_server: key.yd2m.com,
+        nginx_domain: "{{ domain }}",
+        keycloak_server: "{{ auth_provider_domain }}",
         keycloak_image: "quay.io/keycloak/keycloak:18.0.2",
         tags: [ keycloak ]
       }  
@@ -56,9 +56,9 @@
         create_kc_role: true,
         create_kc_user: true,
         nginx_run_as: 'stack',
-        nginx_domain: "yd2m.com",
+        nginx_domain: "{{ domain }}",
         nginx_subdomain: "ui.",
-        keycloak_server: key.yd2m.com,
+        keycloak_server: "{{ auth_provider_domain }}",
         greenlight_create_admin: false,
         include_auth: true,
         tags: [ greenlight ]
@@ -81,9 +81,9 @@
         create_kc_user: true,        
         auth_bypass: "false",
         nginx_run_as: 'stack',
-        nginx_domain: yd2m.com,
+        nginx_domain: "{{ domain }}",
         nginx_subdomain: "mon.",
-        keycloak_server: key.yd2m.com,
+        keycloak_server: "{{ auth_provider_domain }}",
         tags: [ grafana ],
         when: configure_monitoring|bool
       }  
@@ -91,7 +91,7 @@
         role: toni.prometheus, 
         deploy_name: "prometheus",
         nginx_run_as: 'stack',
-        nginx_domain: yd2m.com,
+        nginx_domain: "{{ domain }}",
         tags: [ prometheus ],
         when: configure_monitoring|bool
       }    

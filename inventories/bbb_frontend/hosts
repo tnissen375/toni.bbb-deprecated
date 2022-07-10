@@ -1,0 +1,47 @@
+#[local]
+#localhost   ansible_connection=local
+
+[builder]
+build.yd2m.com
+
+[bigbluebutton]
+bbb1.yd2m.com
+bbb2.yd2m.com
+
+[scalelite]
+lb.yd2m.com 
+
+[frontend]
+ui.yd2m.com docker_network_driver='overlay'
+
+[wg_server]
+lb.yd2m.com
+
+[wg_clients]
+bbb1.yd2m.com wg_client_ip=10.8.0.2 nfs=true
+bbb2.yd2m.com wg_client_ip=10.8.0.3 nfs=true
+ui.yd2m.com wg_client_ip=10.8.0.4 
+turn.yd2m.com wg_client_ip=10.8.0.5
+
+[turn]
+turn.yd2m.com
+
+#greenlight needs to bypass on lb
+#lb needs to bypass on bbb
+#bbb need to bypass on self
+
+[auth_bypass]
+lb.yd2m.com
+bbb1.yd2m.com
+bbb2.yd2m.com
+ui.yd2m.com
+
+#nc-4-01 ansible_ssh_host=89.58.8.242
+
+[docker_engine]
+ui.yd2m.com
+
+[docker_swarm_manager]
+ui.yd2m.com swarm_labels='["manager", "docker", "deploy"]'
+
+[docker_swarm_worker]

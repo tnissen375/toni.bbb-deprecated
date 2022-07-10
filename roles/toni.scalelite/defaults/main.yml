@@ -1,8 +1,10 @@
 ---
 user: "root"
 user_path: "/root"
+deploy_name: "scalelite"
 nfs_server_dir: /mnt/scalelite-recordings
-openresty_image: "openresty:1.17.8.2-5-alpine-fat"
+openresty_image: "openresty:1.21.4.1-alpine-fat"
+blindside_version: "v1.3.3.1"
 or_scalelite_image: "scalelite_{{openresty_image}}"
 host_root_dir: "/root/scalelite"
 scalelite_server: "lb.{{ domain }}"
@@ -10,11 +12,17 @@ container_cert_path: "/etc/ssl/dummy-ssl-fallback.crt"
 container_key_path: "/etc/ssl/dummy-ssl-fallback.key"
 nginx_conf_dir: "/etc/nginx"
 
+create_stack_network: true
+stack_network_name: "scalelite"
+stack_subnet: "10.10.31.0/24"
+
 dir_exists:
     - "{{ host_root_dir }}"
     - "/var/www/letsencrypt"
     - "/etc/letsencrypt/live"
     - "{{ nginx_conf_dir }}/snippets"
+    - "/var/lib/redis"
+    - "/var/lib/postgresql"
 
 # openssl rand -hex 64
 #scalelite_secret_key:
@@ -27,10 +35,10 @@ scalelite_db_docker: yes
 scalelite_db_user: scalelite
 scalelite_db_pass: f26b21223835cd8a
 scalelite_db_name: scalelite
-#scalelite_db_init: no
+scalelite_db_init: no
 
 scalelite_redis_docker: yes
 # only if scalelite_db_redis is false
-#scalelite_redis_host:
+scalelite_redis_host: "scalelite_redis"
 
 

@@ -1,86 +1,53 @@
 ---
-- name: Create greenlight directory
-  file:
+- name: Register nginx.conf file
+  stat:
+    path: "{{ nginx_conf_dir }}/nginx.conf"
+  register: nginx_conf_file  
+
+- file:
     state: directory
-    path: "{{ user_path }}/greenlight"
+    path: "{{ item }}"
+    recurse: yes
+  loop:
+    "{{ dir_exists }}"
+
+- name: set hostname
+  include_role:
+    name: toni.base
+    tasks_from: host
+  vars:
+    deploy_hostname: "{{ deploy_name }}"
 
 - name: Deploy docker-compose file
   template:
     src: docker-compose.yml.j2
-    dest: "{{ user_path }}/greenlight/docker-compose.yml"
+    dest: "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
 
 - name: Deploy greenlight environment file
   template:
     src: env.j2
-    dest: "{{ user_path }}/greenlight/.env"
+    dest: "{{ user_path }}/{{ deploy_name }}/.env"
 
 - name: Deploy greenlight vhost
   template:
     src: greenlight.conf.j2
     dest: "{{ nginx_conf_dir }}/conf.d/greenlight.conf"
 
-- name: Launch docker-compose
-  docker_compose:
-    build: yes
-    pull: yes
-    project_src: "{{ user_path }}/greenlight"
+- name: Deploy Make
+  template:
+    src: "Makefile.j2"
+    dest: "{{ user_path }}/{{ deploy_name }}/Makefile"
 
-- replace:
-    path: "{{ user_path }}/greenlight/docker-compose.yml"
-    regexp: '#'
-    replace: ''
-
-- name: Copy files from container
-  command: docker cp greenlight-v2:/usr/src/app/app/controllers/application_controller.rb /root/greenlight/
-
-- name: Insert user autologin code
-  blockinfile:
-    path: "{{ user_path }}/greenlight/application_controller.rb"
-    insertafter: '^\s*def current_user'
-    block: |
-        @current_user ||= User.includes(:role, :main_room).find_by(id: session[:user_id])
-         begin
-          logger.info "Support Request: #{request.headers["X-Auth-Email"]} is attempting to login."
-          pw = "{{ greenlight_pw_new_users }}"
-          u = {
-            name: request.headers["X-Auth-Username"] || 'dummy',
-            password: pw,
-            language: request.headers["X-Auth-Locale"],
-            email: request.headers["X-Auth-Email"],
-            role: request.headers["X-Auth-Role"] || "user",
-            provider: "greenlight"
-          }
-          # Create account if it doesn't exist
-          if !User.exists?(email: u[:email], provider: u[:provider])
-            user = User.create(name: u[:name], email: u[:email], password: u[:password],
-              provider: u[:provider], email_verified: true, accepted_terms: true)
-    
-            unless user.valid?
-              logger.error "Error creating user from Keycloak"
-            end
-
-            unless Role.exists?(name: u[:role], provider: u[:provider])
-              logger.error "Error creating user - invalid role from Keycloak"
-            end
-            user.set_role(u[:role])
-          else
-             user = User.include_deleted.find_by(email: request.headers["X-Auth-Email"])
-          end
-            @current_user=user
-          rescue => e
-            logger.error "Error authenticating via Keycloak: #{e}"
-         end
-    marker: "# {mark} ANSIBLE MANAGED"
-  notify: restart greenlight
-
-- name: Configure nginx logs
+- name: Create network
   include_role:
-    name: toni.openresty
-    tasks_from: logs
-  
-- name: set facts
-  set_fact:
-    access_group: "{{ keycloak_access_group }}"
+    name: toni.docker
+    tasks_from: create_network
+  vars:
+    ipam_driver_options:
+      encrypted: "false"
+    docker_networks:
+      - { name: "{{ stack_network_name }}", subnet: "{{ stack_subnet }}", driver: "overlay", internal: 'no', gateway: "" }
+  when: create_stack_network|default(false)
 
 - name: Copy snippets
   include_role:
@@ -91,6 +58,146 @@
     nginx_snippets:
       - { srcname: "auth.conf.j2", destname: "{{ access_group }}_auth.conf" }
 
+- name: Configure nginx logs
+  when: nginx_conf_file.stat.exists
+  include_role:
+    name: toni.openresty
+    tasks_from: logs
+  vars:
+    nginx_logfiles:
+      - { conffile: "{{ nginx_conf_dir }}/conf.d/{{ nginx_subdomain }}{{ nginx_domain }}.conf", logdir: "/usr/local/openresty/nginx/logs" }    
+
+- name: restart nginx stack
+  when: nginx_run_as is defined and nginx_run_as=="stack"
+  docker_stack:
+    state: absent
+    name: "{{ nginx_stack }}"
+    compose:
+      - "{{ user_path }}/{{ nginx_stack }}/docker-compose.yml" 
+
+- name: restart nginx stack
+  when: nginx_run_as is defined and nginx_run_as=="stack" and nginx_stack_keep_alive|bool == false
+  docker_stack:
+    state: present
+    prune: yes
+    name: "{{ nginx_stack }}"
+    compose:
+      - "{{ user_path }}/{{ nginx_stack }}/docker-compose.yml" 
+      
+- name: reload nginx stack
+  command: make reload
+  args:
+    chdir: "{{ user_path }}/{{ nginx_stack }}"
+  register: result_reload
+  when: nginx_stack_keep_alive|bool == true
+
+- name: set cert facts 
+  include_role:
+    name: toni.certificates
+    tasks_from: certbot_facts
+  vars:
+    certbot_server: "{{ nginx_subdomain }}{{ nginx_domain }}"
+    record_dns_create: false
+    record_dns_update: false
+    dns_create: false
+
+- name: restart green stack
+  when: nginx_run_as is defined and nginx_run_as=="stack"
+  docker_stack:
+    state: absent
+    prune: yes
+    name: "{{ deploy_name }}"
+    compose:
+      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
+
+- name: restart green stack
+  when: nginx_run_as is defined and nginx_run_as=="stack"
+  docker_stack:
+    state: present
+    prune: yes
+    name: "{{ deploy_name }}"
+    compose:
+      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"   
+
+- replace:
+    path: "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
+    regexp: '#'
+    replace: ''
+
+- name: Sleep for 20 seconds and continue
+  wait_for:
+    timeout: 30
+  delegate_to: localhost
+
+- name: Copy file from container
+  command: make cp_ctrl
+  args:
+    chdir: "{{ user_path }}/{{ deploy_name }}"
+  retries: 3
+  delay: 20
+  until: result_make is not failed    
+  register: result_make
+
+#- debug: var=result_make.stdout_lines
+
+# - name: Insert user autologin code
+#   blockinfile:
+#     path: "{{ user_path }}/{{ deploy_name }}/application_controller.rb"
+#     insertafter: '^\s*def current_user'
+#     block: |
+#         @current_user ||= User.includes(:role, :main_room).find_by(id: session[:user_id])
+#          begin
+#           logger.info "Support Request: #{request.headers["X-Auth-Email"]} is attempting to login."
+#           pw = "{{ greenlight_pw_new_users }}"
+#           u = {
+#             name: request.headers["X-Auth-Username"] || 'dummy',
+#             password: pw,
+#             language: request.headers["X-Auth-Locale"],
+#             email: request.headers["X-Auth-Email"],
+#             role: request.headers["X-Auth-Role"] || "user",
+#             provider: "greenlight"
+#           }
+#           # Create account if it doesn't exist
+#           if !User.exists?(email: u[:email], provider: u[:provider])
+#             user = User.create(name: u[:name], email: u[:email], password: u[:password],
+#               provider: u[:provider], email_verified: true, accepted_terms: true)
+    
+#             unless user.valid?
+#               logger.error "Error creating user from Keycloak"
+#             end
+
+#             unless Role.exists?(name: u[:role], provider: u[:provider])
+#               logger.error "Error creating user - invalid role from Keycloak"
+#             end
+#             user.set_role(u[:role])
+#           else
+#              user = User.include_deleted.find_by(email: request.headers["X-Auth-Email"])
+#           end
+#             @current_user=user
+#           rescue => e
+#             logger.error "Error authenticating via Keycloak: #{e}"
+#          end
+#     marker: "# {mark} ANSIBLE MANAGED"
+#   notify: restart greenlight
+
+# - name: Configure nginx logs
+#   include_role:
+#     name: toni.openresty
+#     tasks_from: logs
+  
+# - name: set facts
+#   set_fact:
+#     access_group: "{{ keycloak_access_group }}"
+
+# - name: Copy snippets
+#   include_role:
+#     name: toni.openresty
+#     tasks_from: snippets
+#   vars:  
+#     keycloak_access_group: "{{ access_group }}"
+#     nginx_snippets:
+#       - { srcname: "auth.conf.j2", destname: "{{ access_group }}_auth.conf" }
+
 - name: Sleep for 20 seconds and continue
   wait_for:
     timeout: 20
@@ -99,10 +206,11 @@
 - name: Create Admin Greenlight admin user
   when: greenlight_create_admin|bool
   shell: |
-    docker exec greenlight-v2 bundle exec rake user:create["admin",{{ greenlight_admin_email }},{{ greenlight_admin_password }},"admin"]
+    docker exec $(docker ps -a | grep "Up" | awk '{print $NF}' | grep -w "{{ deploy_name }}_{{ deploy_name }}\.*") bundle exec rake user:create["admin",{{ greenlight_admin_email }},{{ greenlight_admin_password }},"admin"]
   register: gl_adminuser
 
 - debug: msg="{{ gl_adminuser.stdout }}"
+  when: greenlight_create_admin|bool
 
 - name: set cert facts 
   when: not existing_certs|bool
@@ -117,4 +225,72 @@
   template:
     src: greenlight.conf.j2
     dest: "{{ nginx_conf_dir }}/conf.d/greenlight.conf"
-  notify: restart nginx docker
+
+- name: restart green stack
+  when: nginx_run_as is defined and nginx_run_as=="stack"
+  docker_stack:
+    state: absent
+    prune: yes
+    name: "{{ deploy_name }}"
+    compose:
+      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
+
+- name: restart green stack
+  when: nginx_run_as is defined and nginx_run_as=="stack"
+  docker_stack:
+    state: present
+    prune: yes
+    name: "{{ deploy_name }}"
+    compose:
+      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"   
+
+- name: Create Keycloak realm
+  include_role:
+    name: toni.keycloak
+    tasks_from: realm
+  # vars:
+  #   keycloak_role_name: "{{ item }}"
+  # when: create_kc_client|default(false)
+
+- name: Create Keycloak client
+  include_role:
+    name: toni.keycloak
+    tasks_from: client
+  vars:
+    keycloak_role_name: "{{ item }}"
+  when: create_kc_client|default(false)
+
+- name: Create Keycloak role(s)
+  include_role:
+    name: toni.keycloak
+    tasks_from: role
+  vars:
+    keycloak_role_name: "{{ item }}"
+  when: create_kc_role|default(false)
+  loop:
+    "{{ keycloak_roles }}"
+
+- name: Create Keycloak user(s)
+  include_role:
+    name: toni.keycloak
+    tasks_from: user
+  vars:
+    kcu: "{{ kc_userdata }}"
+  when: create_kc_user|default(false)
+  loop:
+    "{{ keycloak_users }}"
+  loop_control:
+    loop_var: kc_userdata
+
+- name: Add role to user
+  include_role:
+    name: toni.keycloak
+    tasks_from: clientrole
+  vars:
+    keycloak_username: "{{ kc_userdata.username }}"
+    keycloak_role: 'greenlight'
+  when: create_kc_user|default(false)
+  loop:
+    "{{ keycloak_users }}"
+  loop_control:
+    loop_var: kc_userdata 

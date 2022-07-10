@@ -2,40 +2,49 @@
 version: '3.7'
 
 networks:
-  nginx_net:
+  {{ nginx_network_name }}:
     external: true
-  stack_com:
+  {{ stack_network_name }}:
     external: true
-  grafana:
-
+  
 services:
-  redis:
-    image: "redis:6"
+  {{ deploy_name }}_redis:
+    image: {{ grafana_redis_image }}
     networks:
-      - grafana
-  postgres:
-    image: "postgres:12"
-    environment:
-      POSTGRES_PASSWORD: {{ grafana_postgres_password }}
-      POSTGRES_USER: grafana
-    networks:
-      - grafana
-  grafana:
-    container_name: grafana
+      - {{ stack_network_name }}
+
+  {{ deploy_name }}_postgres:
+      image: {{ grafana_pg_image }}
+      volumes:
+        - {{ deploy_name }}_postgres_vol:/var/lib/postgresql/data
+        - /etc/localtime:/etc/localtime:ro
+      environment:
+        POSTGRES_DB: "{{ grafana_db_name }}"
+        POSTGRES_USER: "{{ grafana_db_user }}"
+        POSTGRES_PASSWORD: "{{ grafana_db_password }}"
+      networks:
+        - {{ stack_network_name }}
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U {{ grafana_db_user }} -d {{ grafana_db_name }}"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+
+  {{ deploy_name }}:
     image: {{ grafana_image }}
 #https://grafana.com/docs/grafana/latest/administration/configuration/
     environment:
-      GF_DATABASE_HOST: "postgres:5432"
-      GF_DATABASE_PASSWORD: {{ grafana_postgres_password }}
+      GF_DATABASE_HOST: "{{ deploy_name }}_postgres:5432"
+      GF_DATABASE_PASSWORD: {{ grafana_db_password }}
       GF_DATABASE_SSL_MODE: disable
       GF_DATABASE_TYPE: postgres
-      GF_DATABASE_USER: grafana
+      GF_DATABASE_USER: {{ grafana_db_user }}
       GF_SERVER_HTTP_PORT: "3000"
       GF_SERVER_ROOT_URL: "{{ grafana_root_url }}"
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: {{ grafana_admin_password }}
       GF_SESSION_PROVIDER: redis
-      GF_SESSION_PROVIDER_CONFIG: addr=redis:6379,pool_size=100,db=grafana,ssl=false
+      GF_SESSION_PROVIDER_CONFIG: addr=redis:6379,pool_size=100,db={{ grafana_db_name }},ssl=false
       GF_USERS_ALLOW_ORG_CREATE: "false"
       GF_USERS_ALLOW_SIGN_UP: "false"
 #      GF_USERS_AUTO_ASSIGN_ORG: "true"
@@ -51,16 +60,17 @@ services:
       GF_AUTH_GENERIC_OAUTH_SCOPES: "openid profile email"
       GF_AUTH_GENERIC_EMAIL_ATTRIBUTE_NAME: email:primary
       GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: "{{ keycloak_client_secret }}"
-      GF_AUTH_GENERIC_OAUTH_AUTH_URL: "https://{{ auth_provider_domain }}/auth/realms/{{ keycloak_realm }}/protocol/openid-connect/auth"
-      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: "https://{{ auth_provider_domain }}/auth/realms/{{ keycloak_realm }}/protocol/openid-connect/token"
-      GF_AUTH_GENERIC_OAUTH_API_URL: "https://{{ auth_provider_domain }}/auth/realms/{{ keycloak_realm }}/protocol/openid-connect/userinfo"
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: "https://{{ auth_provider_domain }}/realms/{{ keycloak_realm }}/protocol/openid-connect/auth"
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: "https://{{ auth_provider_domain }}/realms/{{ keycloak_realm }}/protocol/openid-connect/token"
+      GF_AUTH_GENERIC_OAUTH_API_URL: "https://{{ auth_provider_domain }}/realms/{{ keycloak_realm }}/protocol/openid-connect/userinfo"
       GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: "contains(resource_access.{{ keycloak_client_name }}.roles[*], 'grafana_admin') && 'Admin' || contains(resource_access.{{ keycloak_client_name }}.roles[*], 'grafana_editor') && 'Editor' || 'Viewer'"
     volumes:
 #https://grafana.com/docs/grafana/latest/installation/configure-docker/
       - "{{ grafana_data_dir }}:/var/lib/grafana"
       - "{{ grafana_prov_dir }}:/etc/grafana/provisioning"
-    restart: unless-stopped
     networks:
-      - nginx_net
-      - stack_com
-      - grafana
+      - {{ nginx_network_name }}
+      - {{ stack_network_name }}
+
+volumes:
+  {{ deploy_name }}_postgres_vol:      

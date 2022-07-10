@@ -4,7 +4,7 @@
 
 # - debug:
 #     msg:
-#       "turn_hostname": "{{ hostvars['turn.toni-media.com']['turn_hostname'] }}"
+#       "turn_hostname": "{{ hostvars['turn.yd2m.com']['turn_hostname'] }}"
 
 - name: Configure Turnserver
   when: configure_turnserver|bool
@@ -14,14 +14,14 @@
   notify: restart bigbluebutton
 
 
-- name: Configure Big Blue Button
-  lineinfile:
-    regexp: '^{{ item.key }}='
-    line: "{{item.key }}={{ item.value }}"
-    path: /usr/share/bbb-web/WEB-INF/classes/bigbluebutton.properties
-    state: present
-  loop: "{{ bigbluebutton_config|dict2items }}"
-  notify: restart bigbluebutton
+# - name: Configure Big Blue Button
+#   lineinfile:
+#     regexp: '^{{ item.key }}='
+#     line: "{{ item.key }}={{ item.value }}"
+#     path: /usr/share/bbb-web/WEB-INF/classes/bigbluebutton.properties
+#     state: present
+#   loop: "{{ bigbluebutton_config|dict2items }}"
+#   notify: restart bigbluebutton
 
 - name: Configure SIP
   when: configure_sip|bool
@@ -42,27 +42,26 @@
   notify: restart bigbluebutton
 
 
-#- { find: "location", path: "/etc/bigbluebutton/nginx/check.nginx", insert: "include snippets/auth.conf;" }
-#- { find: "location", path: "/etc/bigbluebutton/nginx/webhooks.nginx", insert: "include snippets/auth.conf;" }
-- name: Secure locations with keycloak
-  include_role:
-    name: toni.base
-    tasks_from: replace_after
-  vars:
-    findlist:
-      - { find: "location", path: "/etc/bigbluebutton/nginx/webhooks.nginx", insert: "include snippets/auth.conf;" }
-      - { find: "location", path: "/etc/nginx/sites-enabled/bigbluebutton", insert: "include snippets/auth.conf;" }
-      - { find: "location", path: "/etc/bigbluebutton/nginx/bbb-html5.nginx", insert: "include snippets/auth.conf;" }
-      - { find: "location", path: "/etc/bigbluebutton/nginx/client", insert: "include snippets/auth.conf;" }
-      - { find: "location", path: "/etc/bigbluebutton/nginx/notes.nginx", insert: "include snippets/auth.conf;" }
-      - { find: "location", path: "/etc/bigbluebutton/nginx/presentation.nginx", insert: "include snippets/auth.conf;" }
-      - { find: "location", path: "/etc/bigbluebutton/nginx/presentation-slides.nginx", insert: "include snippets/auth.conf;" }
-      - { find: "location", path: "/etc/bigbluebutton/nginx/screenshare.nginx", insert: "include snippets/auth.conf;" }
-      - { find: "location", path: "/etc/bigbluebutton/nginx/sip.nginx", insert: "include snippets/auth.conf;" }
-      - { find: "location", path: "/etc/bigbluebutton/nginx/verto.nginx", insert: "include snippets/auth.conf;" }
-      - { find: "location", path: "/etc/bigbluebutton/nginx/web.nginx", insert: "include snippets/auth.conf;" }
-      - { find: "location", path: "/etc/bigbluebutton/nginx/webrtc-sfu.nginx", insert: "include snippets/auth.conf;" }
-#  ignore_errors: yes
+# #- { find: "location", path: "/etc/bigbluebutton/nginx/check.nginx", insert: "include snippets/auth.conf;" }
+# #- { find: "location", path: "/etc/bigbluebutton/nginx/webhooks.nginx", insert: "include snippets/auth.conf;" }
+# - name: Secure locations with keycloak
+#   include_role:
+#     name: toni.base
+#     tasks_from: replace_after
+#   vars:
+#     findlist:
+#       - { find: "location", path: "/etc/bigbluebutton/nginx/webhooks.nginx", insert: "include snippets/auth.conf;" }
+#       - { find: "location", path: "/etc/nginx/sites-enabled/bigbluebutton", insert: "include snippets/auth.conf;" }
+#       - { find: "location", path: "/etc/bigbluebutton/nginx/bbb-html5.nginx", insert: "include snippets/auth.conf;" }
+#       - { find: "location", path: "/etc/bigbluebutton/nginx/notes.nginx", insert: "include snippets/auth.conf;" }
+#       - { find: "location", path: "/etc/bigbluebutton/nginx/presentation.nginx", insert: "include snippets/auth.conf;" }
+#       - { find: "location", path: "/etc/bigbluebutton/nginx/presentation-slides.nginx", insert: "include snippets/auth.conf;" }
+#       - { find: "location", path: "/etc/bigbluebutton/nginx/playback.nginx", insert: "include snippets/auth.conf;" }
+#       - { find: "location", path: "/etc/bigbluebutton/nginx/sip.nginx", insert: "include snippets/auth.conf;" }
+#       - { find: "location", path: "/etc/bigbluebutton/nginx/web.nginx", insert: "include snippets/auth.conf;" }
+#       - { find: "location", path: "/etc/bigbluebutton/nginx/webrtc-sfu.nginx", insert: "include snippets/auth.conf;" }
+#       - { find: "location", path: "/etc/bigbluebutton/nginx/learning-dashboard.nginx", insert: "include snippets/auth.conf;" }
+# #  ignore_errors: yes
 
 - name: Update Sudoers
   lineinfile:
@@ -82,11 +81,11 @@
       BigBlueButton.logger.info(“There are no recording marks for #{meeting_id}, deleting the recording.”)\
       system(‘sudo’, ‘bbb-record’, ‘–delete’, “#{meeting_id}”) || raise(‘Failed to delete local recording’)' /usr/local/bigbluebutton/core/scripts/archive/archive.rb 
 
-- name: Deleting raw recording data after a meeting has been archived
-  lineinfile:
-    dest: /usr/local/bigbluebutton/core/scripts/post_publish/scalelite_post_publish.rb
-    line: system('sudo', 'bbb-record', '--delete', "#{meeting_id}") || raise('Failed to delete local recording')
-    state: present
+# - name: Deleting raw recording data after a meeting has been archived
+#   lineinfile:
+#     dest: /usr/local/bigbluebutton/core/scripts/post_publish/scalelite_post_publish.rb
+#     line: system('sudo', 'bbb-record', '--delete', "#{meeting_id}") || raise('Failed to delete local recording')
+#     state: present
 
 - name: Retention of cache files
   lineinfile:
@@ -136,13 +135,13 @@
     state: present
   notify: restart bigbluebutton
 
-- name: IP loglevel wbrtc
-  lineinfile:
-    regexp: '^level:'
-    line: "level: {{ bbb_webrtc_loglevel }}"
-    path: /usr/local/bigbluebutton/bbb-webrtc-sfu/config/default.yml
-    state: present
-  notify: restart bigbluebutton
+# - name: IP loglevel wbrtc
+#   lineinfile:
+#     regexp: '^level:'
+#     line: "level: {{ bbb_webrtc_loglevel }}"
+#     path: /usr/local/bigbluebutton/bbb-webrtc-sfu/config/default.yml
+#     state: present
+#   notify: restart bigbluebutton
 
 - name: Configure nginx logs
   include_role:
@@ -151,52 +150,57 @@
   vars:
     nginx_run_as: "service"
     
-- name: Freeswitch loglevel
-  lineinfile:
-    regexp: '^\s*{{ item }}'
-    line: '  {{ item }} = "{{ bbb_freeswitch_loglevel }}"'
-    path: /etc/bbb-fsesl-akka/application.conf
-    state: present
-  notify: restart bigbluebutton
-  loop:
-    - "loglevel"
-    - "stdout-loglevel"
+# - name: Freeswitch loglevel
+#   lineinfile:
+#     regexp: '^\s*{{ item }}'
+#     line: '  {{ item }} = "{{ bbb_freeswitch_loglevel }}"'
+#     path: /etc/bbb-fsesl-akka/application.conf
+#     state: present
+#   notify: restart bigbluebutton
+#   loop:
+#     - "loglevel"
+#     - "stdout-loglevel"
 
-- name: Freeswitch loglevel xml
-  xml: 
-    path: /etc/bbb-fsesl-akka/logback.xml
-    xpath: '/configuration/logger'
-    attribute: level
-    value: "{{ bbb_freeswitch_loglevel }}"
-  notify: restart bigbluebutton
+# - name: Freeswitch loglevel xml
+#   xml: 
+#     path: /etc/bbb-fsesl-akka/logback.xml
+#     xpath: '/configuration/logger'
+#     attribute: level
+#     value: "{{ bbb_freeswitch_loglevel }}"
+#   notify: restart bigbluebutton
 
-- name: Red5 loglevel xml
-  xml:
-    path: /etc/red5/logback.xml
-    xpath: '/configuration/logger[@name="{{ item }}"]/level'
-    attribute: value
-    value: "{{ bbb_red5_loglevel }}"
-  notify: restart bigbluebutton
-  loop:
-    - org.red5.server.stream.PlayEngine
-    - org.red5.server.net.rtmp.codec.RTMPProtocolEncoder
-    - org.red5.server.net.rtmp.RTMPConnection
+# - name: Kurento loglevel
+#   lineinfile:
+#     regexp: '^export GST_DEBUG='
+#     line: "level: {{ bbb_kurento_GST_DEBUG }}"
+#     path: /etc/default/kurento-media-server
+#     state: present
+#   notify: restart bigbluebutton
 
-- name: Kurento loglevel
-  lineinfile:
-    regexp: '^export GST_DEBUG='
-    line: "level: {{ bbb_kurento_GST_DEBUG }}"
-    path: /etc/default/kurento-media-server
-    state: present
-  notify: restart bigbluebutton
+# - name: Kurento service parameter
+#   lineinfile:
+#     regexp: '^ExecStart='
+#     line: "ExecStart=/usr/bin/kurento-media-server --gst-debug={{ bbb_kurento_GST_DEBUG }}"
+#     path: /usr/lib/systemd/system/kurento-media-server-8888.service
+#     state: present
+#   notify: restart bigbluebutton
 
-- name: Kurento service parameter
-  lineinfile:
-    regexp: '^ExecStart='
-    line: "ExecStart=/usr/bin/kurento-media-server --gst-debug={{ bbb_kurento_GST_DEBUG }}"
-    path: /usr/lib/systemd/system/kurento-media-server.service
-    state: present
-  notify: restart bigbluebutton
+# - name: Kurento service parameter
+#   lineinfile:
+#     regexp: '^ExecStart='
+#     line: "ExecStart=/usr/bin/kurento-media-server --gst-debug={{ bbb_kurento_GST_DEBUG }}"
+#     path: /usr/lib/systemd/system/kurento-media-server-8889.service
+#     state: present
+#   notify: restart bigbluebutton
+
+# - name: Kurento service parameter
+#   lineinfile:
+#     regexp: '^ExecStart='
+#     line: "ExecStart=/usr/bin/kurento-media-server --gst-debug={{ bbb_kurento_GST_DEBUG }}"
+#     path: /usr/lib/systemd/system/kurento-media-server-8890.service
+#     state: present
+#   notify: restart bigbluebutton
+
 
 #- name: Disable Kurento logging
 #  lineinfile:
@@ -206,13 +210,13 @@
 #    state: present
 #  notify: restart bigbluebutton
 
-- name: Change Freeswitch PW
-  xml:
-    path: /opt/freeswitch/etc/freeswitch/vars.xml
-    xpath: "/include/X-PRE-PROCESS[contains(@data, 'default_password=')]"
-    attribute: data
-    value: "default_password=12573317"
-  notify: restart bigbluebutton
+# - name: Change Freeswitch PW
+#   xml:
+#     path: /opt/freeswitch/etc/freeswitch/vars.xml
+#     xpath: "/include/X-PRE-PROCESS[contains(@data, 'default_password=')]"
+#     attribute: data
+#     value: "default_password=12573317"
+#   notify: restart bigbluebutton
 
 - name: Change Freeswitch Stun
   xml:
@@ -233,58 +237,55 @@
 #https://github.com/ichdasich/bbb-rec-perm
 #todo
 
-- name: Get user uid/gid
-  getent:
-    database: passwd
-    key: "{{ item.name }}"
-  loop:
-    - { name: 'red5' }
-    - { name: 'bigbluebutton' }
-    - { name: 'freeswitch' }
-    - { name: 'kurento' }
-  register: users_getent
-  when: bbb_mount_tmpfs|bool
+# - name: Get user uid/gid
+#   getent:
+#     database: passwd
+#     key: "{{ item.name }}"
+#   loop:
+#     - { name: 'meteor' }
+#     - { name: 'bigbluebutton' }
+#     - { name: 'freeswitch' }
+#     - { name: 'kurento' }
+#   register: users_getent
+#   when: bbb_mount_tmpfs|bool
 
-#todo: check if paths are used
-- name: "create missing dirs"
-  when: bbb_mount_tmpfs|bool
-  file:
-    path: "{{ item }}"
-    state: directory
-    owner: kurento
-    group: kurento
-    recurse: yes
-  loop:
-    - /var/kurento/recordings
-    - /var/kurento/screenshare
+# #todo: check if paths are used
+# - name: "create missing dirs"
+#   when: bbb_mount_tmpfs|bool
+#   file:
+#     path: "{{ item }}"
+#     state: directory
+#     owner: kurento
+#     group: kurento
+#     recurse: yes
+#   loop:
+#     - /var/kurento/recordings
+#     - /var/kurento/screenshare
 
-- name: Cache files - prevent data to be written to disk - tmpfs
-  when: bbb_mount_tmpfs|bool
-  blockinfile:
-    path: /etc/fstab
-    block: |
-      tmpfs /var/bigbluebutton/recording/raw/ tmpfs rw,nosuid,noatime,uid={{ users_getent.results[1].ansible_facts.getent_passwd['bigbluebutton'][1] }},gid={{ users_getent.results[1].ansible_facts.getent_passwd['bigbluebutton'][2] }},size=16G,mode=0755 0 0
-      tmpfs /var/bigbluebutton/unpublished/ tmpfs rw,nosuid,noatime,uid=users_getent.results[1].ansible_facts.getent_passwd['bigbluebutton'][1] }},gid={{ users_getent.results[1].ansible_facts.getent_passwd['bigbluebutton'][2] }},size=16G,mode=0755 0 0
-      tmpfs /var/bigbluebutton/published/presentation/ tmpfs rw,nosuid,noatime,uid=uid=users_getent.results[1].ansible_facts.getent_passwd['bigbluebutton'][1] }},gid={{ users_getent.results[1].ansible_facts.getent_passwd['bigbluebutton'][2] }},size=16G,mode=0755 $
-      tmpfs /usr/share/red5/webapps/video/streams/ tmpfs rw,nosuid,noatime,uid={{ users_getent.results[0].ansible_facts.getent_passwd['red5'][1] }},gid={{ users_getent.results[0].ansible_facts.getent_passwd['red5'][2] }},size=16G,mode=0755 0 0
-      tmpfs /usr/share/red5/webapps/screenshare/streams/ tmpfs rw,nosuid,noatime,uid={{ users_getent.results[0].ansible_facts.getent_passwd['red5'][1] }},gid={{ users_getent.results[0].ansible_facts.getent_passwd['red5'][2] }},size=16G,mode=0755 0 0
-      tmpfs /usr/share/red5/webapps/video-broadcast/streams/ tmpfs rw,nosuid,noatime,uid={{ users_getent.results[0].ansible_facts.getent_passwd['red5'][1] }},gid={{ users_getent.results[0].ansible_facts.getent_passwd['red5'][2] }},size=16G,mode=0755 0 0
-      tmpfs /var/kurento/recordings/ tmpfs rw,nosuid,noatime,uid={{ users_getent.results[3].ansible_facts.getent_passwd['kurento'][1] }},gid={{ users_getent.results[3].ansible_facts.getent_passwd['kurento'][2] }},size=16G,mode=0755 0 0
-      tmpfs /var/kurento/screenshare/ tmpfs rw,nosuid,noatime,uid={{ users_getent.results[3].ansible_facts.getent_passwd['kurento'][1] }},gid={{ users_getent.results[3].ansible_facts.getent_passwd['kurento'][2] }},size=16G,mode=0755 0 0
-      tmpfs /var/freeswitch/meetings/ tmpfs rw,nosuid,noatime,uid={{ users_getent.results[2].ansible_facts.getent_passwd['freeswitch'][1] }},gid={{ users_getent.results[2].ansible_facts.getent_passwd['freeswitch'][2] }},size=16G,mode=0755 0 0
-    marker: "# {mark} ANSIBLE MANAGED BLOCK"
+# - name: Cache files - prevent data to be written to disk - tmpfs
+#   when: bbb_mount_tmpfs|bool
+#   blockinfile:
+#     path: /etc/fstab
+#     block: |
+#       tmpfs /var/bigbluebutton/recording/raw/ tmpfs rw,nosuid,noatime,uid={{ users_getent.results[1].ansible_facts.getent_passwd['bigbluebutton'][1] }},gid={{ users_getent.results[1].ansible_facts.getent_passwd['bigbluebutton'][2] }},size=16G,mode=0755 0 0
+#       tmpfs /var/bigbluebutton/unpublished/ tmpfs rw,nosuid,noatime,uid={{users_getent.results[1].ansible_facts.getent_passwd['bigbluebutton'][1] }},gid={{ users_getent.results[1].ansible_facts.getent_passwd['bigbluebutton'][2] }},size=16G,mode=0755 0 0
+#       tmpfs /var/bigbluebutton/published/presentation/ tmpfs rw,nosuid,noatime,uid={{users_getent.results[1].ansible_facts.getent_passwd['bigbluebutton'][1] }},gid={{ users_getent.results[1].ansible_facts.getent_passwd['bigbluebutton'][2] }},size=16G,mode=0755 0 0
+#       tmpfs /var/kurento/recordings/ tmpfs rw,nosuid,noatime,uid={{ users_getent.results[3].ansible_facts.getent_passwd['kurento'][1] }},gid={{ users_getent.results[3].ansible_facts.getent_passwd['kurento'][2] }},size=16G,mode=0755 0 0
+#       tmpfs /var/kurento/screenshare/ tmpfs rw,nosuid,noatime,uid={{ users_getent.results[3].ansible_facts.getent_passwd['kurento'][1] }},gid={{ users_getent.results[3].ansible_facts.getent_passwd['kurento'][2] }},size=16G,mode=0755 0 0
+#       tmpfs /var/freeswitch/meetings/ tmpfs rw,nosuid,noatime,uid={{ users_getent.results[2].ansible_facts.getent_passwd['freeswitch'][1] }},gid={{ users_getent.results[2].ansible_facts.getent_passwd['freeswitch'][2] }},size=16G,mode=0755 0 0
+#     marker: "# {mark} ANSIBLE MANAGED BLOCK"
 
-- name: Remove tmpfs mountpoints
-  when: not bbb_mount_tmpfs|bool
-  blockinfile:
-    path: /etc/fstab
-    block: |
-    marker: "# {mark} ANSIBLE MANAGED BLOCK"
-    state: absent
+# - name: Remove tmpfs mountpoints
+#   when: not bbb_mount_tmpfs|bool
+#   blockinfile:
+#     path: /etc/fstab
+#     block: |
+#     marker: "# {mark} ANSIBLE MANAGED BLOCK"
+#     state: absent
 
-- name: Mount 
-  command:  mount -a
-  register: mount
-  notify: restart bigbluebutton
+# - name: Mount 
+#   command:  mount -a
+#   register: mount
+#   notify: restart bigbluebutton
 
-- debug: msg="{{ mount.stdout }}"
+# - debug: msg="{{ mount.stdout }}"

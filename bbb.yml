@@ -18,67 +18,33 @@
           2.de.pool.ntp.org,
           3.de.pool.ntp.org
         ]
-       }        
-  tasks:
-  - name: Deploy certificates
-    when: existing_certs|bool
-    import_role: { name: toni.certificates }
-    tags: certs
+       }
   vars:
-    configure_monitoring: "True"
+     configure_monitoring: "True"          
+  # tasks:
+  # - name: Deploy certificates
+  #   when: existing_certs|bool
+  #   import_role: { name: toni.certificates }
+  #   tags: certs
+
 
 - import_playbook: wireguard.yml
   when: configure_wireguard|bool
   tags: wireguard
 
-- name: Docker
-  hosts: all
-  strategy: free
+- import_playbook: turnserver.yml
+  tags: turn
+ when: configure_turnserver|bool
+
+- name: Setup BBB Server
+  hosts: bigbluebutton
   remote_user: root
   gather_facts: yes
   roles:
-     - {
-       role: toni.docker,
-       node_exporter_ip: "{{ wg_client_ip|default('10.8.0.1') }}"
-       }       
-
-- import_playbook: turnserver.yml
-  tags: turn
-  when: configure_turnserver|bool
-
-- name: BigBlueButton
-  hosts: bigbluebutton
-  gather_facts: yes
-  become: yes
-  vars:
-    bbb_letsencrypt_enable: no
-    bbb_coturn_enable: no
-    bbb_turn_enable: no
-    bbb_nginx_dh: no
-    bbb_hostname: "{{ inventory_hostname }}"
-    bbb_greenlight_enable: no
-    bbb_api_demos_enable: no
-    bbb_webhooks_enable: True
-    bbb_coturn_secret: cannot_be_unset
-    bbb_ssl_cert: "/etc/nginx/ssl/certs/wildcard.crt"
-    bbb_ssl_key: "/etc/nginx/ssl/certs/wildcard.key"
-    nginx_run_as: "service"
-    nginx_resolver: "8.8.8.8"
-    force_images: "True"
-    nfs_bbb: "true"
-    keycloak_access_group: "bbb"
-    auth_provider_domain: "key.{{ domain }}"
-    nginx_docker_volumes:
-      - "/etc/nginx:/etc/nginx"
-      - "/etc/bigbluebutton/nginx/:/etc/bigbluebutton/nginx"
-      - "/var/www:/var/www"
-      - "/playback:/playback"
-      - "/var/bigbluebutton:/var/bigbluebutton"
-      - "/bigbluebutton:/bigbluebutton"
-      - "/usr/share/meteor:/usr/share/meteor"      
-  roles:
-    - n0emis.bigbluebutton
-    - toni.openresty
+    - {
+        role: toni.bigbluebutton,
+        bbb_webhooks_enable: "true"
+      } 
 
 - name: Setup Loadbalancer scalelite
   hosts: scalelite
@@ -90,6 +56,8 @@
     - force_images: "True"
     - letsencrypt_email: "jidumailer@gmail.com"    
     - auth_provider_domain: "key.{{ domain }}"
+    - nginx_domain: "{{ domain }}"
+    - scalelite_db_init: "True"
 
 - name: Configure BBB
   gather_facts: yes
@@ -97,9 +65,9 @@
   handlers:
     - include: "/root/.ansible/roles/toni.openresty/handlers/main.yml"
   tasks:
-  - name: Firewall BBB
-    when: configure_firewall|bool
-    include_role: { name: toni.bigbluebutton, tasks_from: firewall }
+  # - name: Firewall BBB
+  #   when: configure_firewall|bool
+  #   include_role: { name: toni.bigbluebutton, tasks_from: firewall }
   - name: Configure BBB SSL
     include_role: { name: toni.bigbluebutton, tasks_from: ssl }
   - name: Configure BBB Exporter
@@ -107,5 +75,3 @@
     include_role: { name: toni.bigbluebutton, tasks_from: monitoring }
   - name: Configure BBB Privacy 
     include_role: { name: toni.bigbluebutton, tasks_from: privacy }
-
-- import_playbook: frontend.yml

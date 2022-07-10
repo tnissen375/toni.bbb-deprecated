@@ -1,0 +1,236 @@
+---
+- file:
+    state: directory
+    path: "{{ item }}"
+    recurse: yes
+  loop:
+    "{{ dir_exists }}"
+    
+- name: Change locale
+  locale_gen:
+    name: en_US.UTF-8
+    state: present
+
+# wg Ubuntu 20 n0emis
+- name: Unmask systemd-timesyncd
+  ansible.builtin.systemd:
+    name: systemd-timesyncd
+    masked: no
+
+- name: install systemd-timesyncd
+  apt:
+    name: systemd-timesyncd
+    state: present
+
+# tomcat9 is installed by demo - its "expected" by bbb-conf even if demos are not instaled
+- name: install tomcat9
+  apt:
+    name: tomcat9
+    state: present
+
+- name: Install bbb using n0emis.bigbluebutton
+  include_role:
+    name: n0emis.bigbluebutton
+    tasks_from: main
+  vars:
+    bbb_version: "focal-250"
+    ansible_distribution_release: "focal"
+    bbb_freeswitch_socket_password: 'ofti4now'
+    bbb_freeswitch_default_password: 'ofti4now'
+    bbb_ufw_reject_networks_default:
+    - 0.0.0.0/8
+    - 100.64.0.0/10
+    - 169.0.2.0/16
+    - 192.0.2.0/24
+    - 192.88.99.0/24
+    - 192.168.0.0/16
+    - 198.18.0.0/15
+    - 198.51.100.0/24
+    - 203.0.113.0/24
+    - 224.0.0.0/4
+    - 240.0.0.0/4
+    bbb_ufw_allow_networks_default:
+    - 172.17.0.0/16
+    - 127.0.0.1/23
+    - 10.0.0.0/8
+    bbb_monitoring_all_in_one_enable: false
+    bbb_letsencrypt_enable: true
+    bbb_ntp_cron: true
+    bbb_letsencrypt_email: jidumailer@gmail.com
+    bbb_turn_enable: false
+    bbb_nginx_dh: false
+    bbb_hostname: "{{ inventory_hostname }}"
+    bbb_greenlight_enable: false
+    bbb_api_demos_enable: false
+    bbb_webhooks_enable: True
+    bbb_coturn_secret: "{{ turn_secret }}"
+
+# - name: Warn user
+#   run_once: yes
+#   debug:
+#     msg: >
+#       Ready to run wget -qO- https://ubuntu.bigbluebutton.org/bbb-install-2.5.sh | bash -s -- -v focal-250 -s {{ inventory_hostname }} -d
+#       This takes around 15 mns
+
+# - name: Launch install script
+#   shell: wget -qO- https://ubuntu.bigbluebutton.org/bbb-install-2.5.sh | bash -s -- -v focal-250 -s {{ inventory_hostname }} -d
+#   become: yes
+
+# # check stat of path    
+# - stat:
+#     path: "/etc/letsencrypt/live/{{ inventory_hostname }}/fullchain.pem"
+#   register: link
+
+# # only deletes if symbolic link
+# - name: remove symlink
+#   file:
+#     path: "{{ item }}"
+#     state: absent
+#   when: link.stat.islnk is defined and link.stat.islnk    
+#   loop:
+#     - "/etc/letsencrypt/live/{{ inventory_hostname }}/fullchain.pem"
+#     - "/etc/letsencrypt/live/{{ inventory_hostname }}/privkey.pem" 
+
+# - name: Deploy conf 
+#   template:
+#     src: "bigbluebutton.j2"
+#     dest: "/etc/nginx/sites-available/bigbluebutton"
+#   vars:
+#      container_cert_path: "/etc/ssl/dummy-ssl-fallback.crt"
+#      container_key_path: "/etc/ssl/dummy-ssl-fallback.key"
+
+- name: install docker
+  include_role:
+    name: toni.docker
+    tasks_from: main
+  vars:
+    node_exporter_ip: "{{ wg_client_ip|default('10.8.0.1') }}"
+
+- name: install openresty
+  include_role:
+    name: toni.openresty
+    tasks_from: main
+  vars:
+    openresty_image: "registry.toni-media.com_openresty:1.21.4.1-alpine-fat"
+    force_images: true
+    nginx_run_as: 'service'
+    nginx_domain: "{{ domain }}"
+    nginx_stack: "nginx"
+    nginx_resolver: "8.8.8.8"
+    nfs_bbb: "true"
+    keycloak_access_group: "bbb"
+    auth_provider_domain: "key.{{ domain }}"
+    nginx_docker_volumes:
+    - "/etc/nginx:/etc/nginx"
+    - "/etc/bigbluebutton/:/etc/bigbluebutton"
+    - "/var/www:/var/www"
+    - "/var/bigbluebutton:/var/bigbluebutton"
+    - "/bigbluebutton:/bigbluebutton"
+    - "/usr/share/meteor:/usr/share/meteor"
+    - "/playback:/playback"
+    - "/usr/share/bigbluebutton/:/usr/share/bigbluebutton"
+#    - "/etc/letsencrypt/:/etc/letsencrypt/"
+
+# - name: set cert facts 
+#   include_role:
+#     name: toni.certificates
+#     tasks_from: certbot_facts
+#   vars:
+#     certbot_server: "{{ inventory_hostname }}"
+#     record_dns_create: false
+#     record_dns_update: false
+#     dns_create: false
+
+# - name: Deploy conf 
+#   template:
+#     src: "bigbluebutton.j2"
+#     dest: "/etc/nginx/sites-available/bigbluebutton"
+
+- name: Modify nginx status check
+  lineinfile:
+    regexp: "usr/sbin/nginx' > /dev/null; then"
+    line: "if ! docker ps | grep -v grep | grep 'nginx.service' > /dev/null; then"
+    path: /usr/bin/bbb-conf
+    state: present
+  #notify: restart bigbluebutton
+
+# - file:
+#     state: directory
+#     path: "/etc/bigbluebutton/nginx"
+#     recurse: yes  
+
+# # - name: Copy snippets
+# #     include_role:
+# #       name: openresty
+# #       tasks_from: snippets
+# #     defaults_from: "../../openresty/defaults/main.yml"      
+# #     vars:  
+# #       nginx_snippets:
+# #         - { srcname: "auth.conf.j2", destname: "bbb_auth.conf" }    
+
+# # - name: Running setip
+# #   shell: "bbb-conf --setip {{ inventory_hostname }}"
+
+# # - name: Configure Big Blue Button
+# #   lineinfile:
+# #     regexp: '^{{ item.key }}='
+# #     line: "{{ item.key }}={{ item.value }}"
+# #     path: /usr/share/bbb-web/WEB-INF/classes/bigbluebutton.properties
+# #     state: present
+# #   loop: "{{ bigbluebutton_config|dict2items }}"
+# #   notify: restart bigbluebutton
+
+# # - name: Configure SIP
+# #   when: configure_sip|bool
+# #   template:
+# #     src: sip_profiles.xml.j2
+# #     dest: "/opt/freeswitch/conf/sip_profiles/external/{{ sip_provider_name }}.xml"
+# #   notify: restart bigbluebutton
+
+# # - name: Configure SIP
+# #   when: configure_sip|bool
+# #   template:
+# #     src: dialplan.xml.j2
+# #     dest: "/opt/freeswitch/conf/dialplan/public/{{ sip_provider_name }}.xml"
+# #     group: daemon
+# #     owner: freeswitch
+# #   notify: restart bigbluebutton
+
+# # - name: Modify webrtc value
+# #   command: yq w -i /usr/local/bigbluebutton/bbb-webrtc-sfu/config/default.yml {{ item.key }} "{{ item.value }}"
+# #   loop: "{{ bigbluebutton_webrtc|dict2items }}"
+# #   notify: restart bigbluebutton
+
+# # - name: Change default presentation
+# #   copy:
+# #     src: files/default.pdf
+# #     dest: /var/www/bigbluebutton-default/default.pdf
+# #     mode: +r
+
+# # - name: Manage camera profiles
+# #   when: bigbluebutton_camera_profiles is defined
+# #   block:
+# #   - name: Generate yq script for camera profile
+# #     copy:
+# #       dest: /var/cache/yq_cameraProfiles.yml
+# #       content: |
+# #         - command: update
+# #           path: public.kurento.cameraProfiles
+# #           value:
+# #           {{ bigbluebutton_camera_profiles|to_nice_yaml|indent(2) }}
+# #     # notify is here as command module always change
+# #     notify: restart bigbluebutton
+
+# #   - name: Set camera profiles
+# #     command: >-
+# #       yq w
+# #       -i
+# #       -s /var/cache/yq_cameraProfiles.yml
+# #       /usr/share/meteor/bundle/programs/server/assets/app/config/settings.yml
+
+# # - name: install bbb-webhooks
+# #   apt:
+# #     name: bbb-webhooks
+# #     state: present
+# #   when: bbb_webhooks_enable is defined and bbb_webhooks_enable
+# #   notify: restart bigbluebutton

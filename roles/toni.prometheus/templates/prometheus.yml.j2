@@ -1,0 +1,43 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 15s
+  query_log_file: /prometheus/query.log
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'bbb'
+    relabel_configs:
+      - source_labels: ['__address__']
+        separator:     ':'
+        regex:         '(.*):.*'
+        target_label:  'instance'
+        replacement:   '$1'
+    static_configs:
+      - targets:
+{% for host in groups['bigbluebutton'] %}
+{% if hostvars[host]['wg_ip'] is defined %}
+          - {{ hostvars[host]['wg_ip']+":9688" }}
+{% endif %}
+{% endfor %}
+
+  - job_name: 'node_exporter'
+    params:
+      format: [prometheus]
+    honor_labels: true
+    relabel_configs:
+      - source_labels: ['__address__']
+        separator:     ':'
+        regex:         '(.*):.*'
+        target_label:  'instance'
+        replacement:   '$1'
+    static_configs:
+      - targets:
+{% for host in groups['all'] %}
+{% if hostvars[host]['wg_ip'] is defined %}
+          - {{ hostvars[host]['wg_ip']+":9100" }}
+{% endif %}
+{% endfor %}

@@ -1,0 +1,37 @@
+TAIL=20
+d=$$(date +%Y%m%d_%H:%M:%S)
+
+DB := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ deploy_name }}_{{ deploy_name }}_postgres\.*")
+NGINX := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ deploy_name }}_{{ deploy_name }}-nginx\.*")
+
+completebackup: bckupdb purge
+
+rm:
+	docker stack rm {{ deploy_name }}
+
+deploy:
+	docker stack deploy -c docker-compose.yml {{ deploy_name }}
+
+ps:
+	docker stack ps {{ deploy_name }} --no-trunc
+
+log:
+	docker service logs -f $(NGINX) --tail ${TAIL} --raw
+
+logdb:
+	docker service logs -f $(DB) --tail ${TAIL}
+
+exec:
+	docker exec -it $(NGINX) /bin/bash
+
+execdb:
+	docker exec -it $(DB) /bin/bash
+
+bckupdb:
+	docker exec $(DB) sh -c 'exec pg_dump -Fc --dbname=postgresql://"$$POSTGRES_USER":"$$POSTGRES_PASSWORD"@127.0.0.1:5432/{{ keycloak_db_name }}' | gzip > {{ user_path }}/{{ deploy_name }}/backup/{{ keycloak_db_name }}_"$d".sql.gz
+
+restoredb:
+	gunzip -c $(file) | docker exec -i $(DB) sh -c 'exec pg_restore --clean --dbname=postgresql://"$$POSTGRES_USER":"$$POSTGRES_PASSWORD"@127.0.0.1:5432/{{ keycloak_db_name }}'
+
+purge:
+	find {{ user_path }}/{{ deploy_name }}/backup/*.sql.gz  -mtime +10 -delete &> /dev/null

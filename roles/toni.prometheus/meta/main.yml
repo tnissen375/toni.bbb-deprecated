@@ -1,6 +1,6 @@
 galaxy_info:
   author: T.Nissen
-  description: Ansible role to install Keycloak with standard realm (Nginx) used by toni.openresty role (authenticating proxy/(SSO))
+  description: Ansible role to install grafana for monitoring BigBlueButton. (SSO/Keycloak)
   company: --
 
   # If the issue tracker for your role is not on github, uncomment the

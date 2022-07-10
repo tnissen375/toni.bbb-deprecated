@@ -1,0 +1,27 @@
+---
+- name: dir
+  become: true
+  file:
+    state: directory
+    path: "{{ item }}"
+    recurse: yes
+    mode: '0640'
+    owner: freeswitch
+    group: daemon
+  loop:
+    "{{ dir_exists }}"
+  when: dir_exists is defined
+
+- name: file
+  become: true
+  file:
+    state: touch
+    access_time: preserve
+    modification_time: preserve
+    path: "{{ item }}"
+    # mode: '0640'
+    # owner: www-data
+    # group: adm
+  loop:
+    "{{ file_exists }}"
+  when: file_exists is defined

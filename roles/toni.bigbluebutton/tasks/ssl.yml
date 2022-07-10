@@ -1,79 +1,55 @@
 ---
-- name: Create Nginx ssl dir
-  file:
-    path: /etc/nginx/ssl
-    state: directory
-    mode: '0755'
+# - name: Create Nginx ssl dir
+#   file:
+#     path: /etc/nginx/ssl
+#     state: directory
+#     mode: '0755'
 
-- name: Register dhparam file
-  stat:
-    path: "/etc/nginx/ssl/dhp-4096.pem"
-  register: dhparam_file_path
+# - name: Register dhparam file
+#   stat:
+#     path: "/etc/nginx/ssl/dhp-4096.pem"
+#   register: dhparam_file_path
 
-- name: Copy dhparam 
-  copy:
-    src: "{{ role_path }}/../../../.ansible/roles/toni.openresty/templates/dhp-4096.pem"
-    dest: /etc/nginx/ssl/dhp-4096.pem
+# - name: Copy dhparam 
+#   copy:
+#     src: "{{ role_path }}/../../../.ansible/roles/toni.openresty/templates/dhp-4096.pem"
+#     dest: /etc/nginx/ssl/dhp-4096.pem
 
-- name: Configure Nginx for SSL
-  template:
-    src: bigbluebutton.j2
-    dest: /etc/nginx/sites-available/bigbluebutton
-    owner: root
-    group: root
-    mode: '0644'
-    backup: yes
-    force: yes
-  notify: restart nginx service
+# - name: Configure Nginx for SSL
+#   template:
+#     src: bigbluebutton.j2
+#     dest: /etc/nginx/sites-available/bigbluebutton
+#     owner: root
+#     group: root
+#     mode: '0644'
+#     backup: yes
+#     force: yes
+#   notify: restart nginx service
 
-- name: Modify Freeswitch for SSL (https)
-  replace:
-    path: /etc/bigbluebutton/nginx/sip.nginx
-    regexp: '^        proxy_pass http\:'
-    replace: '        proxy_pass https:'
-  notify: restart bigbluebutton
-  tags: debug
+# - name: Modify Freeswitch for SSL (https)
+#   replace:
+#     path: /etc/bigbluebutton/nginx/sip.nginx
+#     regexp: '^        proxy_pass http\:'
+#     replace: '        proxy_pass https:'
+#   notify: restart bigbluebutton
+#   tags: debug
 
-- name: Modify Freeswitch for SSL (port)
-  replace:
-    path: /etc/bigbluebutton/nginx/sip.nginx
-    regexp: '5066\;$'
-    replace: '7443;'
+# - name: Modify Freeswitch for SSL (port)
+#   replace:
+#     path: /etc/bigbluebutton/nginx/sip.nginx
+#     regexp: '5066\;$'
+#     replace: '7443;'
 
-- name: Modify bigbluebutton.properties
-  replace:
-    path: /usr/share/bbb-web/WEB-INF/classes/bigbluebutton.properties
-    regexp: 'web\.serverURL=http\:'
-    replace: 'web.serverURL=https:'
-
-- name: Modify screenshare.properties
-  replace:
-    path: /usr/share/red5/webapps/screenshare/WEB-INF/screenshare.properties
-    regexp: 'http\:'
-    replace: 'https:'
-
-- name: Modify config.xml
-  shell: sed -e 's|http://|https://|g' -i /var/www/bigbluebutton/client/conf/config.xml
-  notify: restart bigbluebutton
-
-- name: Modify meteor config file (ws)
-  replace:
-    path: /usr/share/meteor/bundle/programs/server/assets/app/config/settings.yml
-    regexp: 'ws\:'
-    replace: 'wss:'
-  notify: restart bigbluebutton
-
-- name: Modify meteor config file (http)
-  replace:
-    path: /usr/share/meteor/bundle/programs/server/assets/app/config/settings.yml
-    regexp: 'http\:'
-    replace: 'https:'
-  notify: restart bigbluebutton
+# - name: Modify bigbluebutton.properties
+#   replace:
+#     path: /usr/share/bbb-web/WEB-INF/classes/bigbluebutton.properties
+#     regexp: 'web\.serverURL=http\:'
+#     replace: 'web.serverURL=https:'
 
 - name: Modify recordings creation yml file
   lineinfile:
     path: /usr/local/bigbluebutton/core/scripts/bigbluebutton.yml
-    regexp: 'playback_protocol.*$'
-    line: 'playback_protocol: https'
+    regexp: 'playback_host.*$'
+    line: 'playback_host: lb.{{ domain }}'
     state: present
   notify: restart bigbluebutton

@@ -13,13 +13,13 @@ server {
   listen [::]:443 ssl http2;
   include snippets/ssl.conf;
 
-{% if existing_certs is defined and existing_certs|bool==true %}
-  ssl_certificate {{ lookup('vars', certificates.0 + '_pem_path') }};
-  ssl_certificate_key {{ lookup('vars', certificates.0 + '_key_path') }};
-{% elif container_cert_path is defined %}
-  ssl_certificate {{ container_cert_path }};
-  ssl_certificate_key {{ container_key_path }};
-{% endif %}
+  {% if existing_certs is defined and existing_certs|bool==true %}
+    ssl_certificate {{ ssl_certs_path }}/{{ nginx_domain }}.crt;
+    ssl_certificate_key {{ ssl_private_path }}/{{ nginx_domain }}.key;
+  {% elif container_cert_path is defined %}
+    ssl_certificate {{ container_cert_path }};
+    ssl_certificate_key {{ container_key_path }};
+  {% endif %}
 
   access_log  /var/log/nginx/greenlight_access.log;
 
@@ -56,7 +56,9 @@ server {
   # subpath, you should change it here.
 
   location /{% if greenlight_subpath is defined %}{{ greenlight_subpath }}|d("") }}{% endif %} {
-    include snippets/{{ role_name }}_auth.conf;
+  {% if include_auth is defined and include_auth|bool==true %}
+    include snippets/{{ access_group }}_auth.conf;
+  {% endif %}
     set $upstream http://greenlight:80;
     proxy_pass          $upstream;
     proxy_set_header    Host              $host;
@@ -66,7 +68,9 @@ server {
   }
 
   location /{% if greenlight_subpath is defined %}{{ greenlight_subpath +"/"}}|d("") }}{% endif %}cable {
-    include snippets/{{ role_name }}_auth.conf;
+  {% if include_auth is defined and include_auth|bool==true %}
+    include snippets/{{ access_group }}_auth.conf;
+  {% endif %}
     set $upstream http://greenlight:80;
     proxy_pass          $upstream;
     proxy_set_header    Host              $host;

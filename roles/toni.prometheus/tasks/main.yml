@@ -1,0 +1,56 @@
+---
+# - name: Test some task
+#   debug: "msg='ey = {{ deploy_name }}'"
+
+- name: Create prometheus directory
+  file:
+    state: directory
+    path: "{{ user_path }}/{{ deploy_name }}"
+
+- name: Create data directory
+  file:
+    state: directory
+    path: "{{ prometheus_data_dir }}"
+    owner: "65534"
+    group: "65534"
+    mode: 0755    
+
+- name: Deploy Make
+  template:
+    src: "Makefile.j2"
+    dest: "{{ user_path }}/{{ deploy_name }}/Makefile"
+
+- name: Open tcp port
+  ufw:
+    rule: allow
+    src: '10.10.11.0/24'
+    port: "9100"
+    proto: tcp
+
+- name: Deploy docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
+
+- name: Deploy prometheus config file
+  template:
+    src: prometheus.yml.j2
+    dest: "{{ user_path }}/{{ deploy_name }}/{{ deploy_name }}.yml"
+
+- name: restart prometheus stack
+  when: nginx_run_as is defined and nginx_run_as=="stack"
+  docker_stack:
+    state: absent
+    prune: yes
+    name: "{{ deploy_name }}"
+    compose:
+      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
+
+- name: restart prometheus stack
+  when: nginx_run_as is defined and nginx_run_as=="stack"
+  docker_stack:
+    state: present
+    prune: yes
+    name: "{{ deploy_name }}"
+    compose:
+      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"

@@ -1,15 +1,17 @@
 ---
 user: "root"
 user_path: "/root"
+configure_ipv4_stack_hostname: true
+configure_ipv6_stack_hostname: false
 # openssk rand -hex 64
 #greenlight_secret_key:
-greenlight_server: ui.{{ domain }}
+greenlight_server: "{{ nginx_subdomain }}{{ nginx_domain }}"
 greenlight_aliases: []
+stack_network_name: 'greenlight'
 
 greenlight_docker_image: bigbluebutton/greenlight:v2
+greenlight_pg_image: 'postgres:13-alpine'
 
-greenlight_db_docker: yes
-# only if greenlight_db_docker is false
 #greenlight_db_host:
 greenlight_db_user: greenlight
 greenlight_db_pass: f26b21223835cd8a
@@ -22,10 +24,28 @@ greenlight_allow_accounts: "true"
 greenlight_report_url: https://github.com/bigbluebutton/greenlight/issues/new
 greenlight_help_url: https://docs.bigbluebutton.org/greenlight/gl-overview.html
 
-keycloak_access_group: "greenlight"
-
 container_cert_path: "/etc/ssl/dummy-ssl-fallback.crt"
 container_key_path: "/etc/ssl/dummy-ssl-fallback.key"
 
+access_group: "greenlight"
+keycloak_deploy_name: "key"
+keycloak_realm: "Intern" # the realm which nginx is using in keycloak
+keycloak_client_name: "Nginx" # client name in keycloak
+keycloak_client_secret: "d3367b2d-85fb-46c0-9fcb-15e2dfeb4d9b" # dummy -> allways change!!
+keycloak_temporary_pass: "a3D4f2n1_a1"
+create_kc_role: false
+create_kc_client: false
+create_kc_user: false
+keycloak_roles:
+  - "greenlight"
+  - "greenlight_admin"
+## only lowercase usernames!!!!
+keycloak_users:
+  - { username: "ace", email: "ace@{{domain}}", firstname: "A", lastname: "ce" }
 
+dns_create: false
+dns_update: false
 
+dir_exists:
+  - "{{ greenlight_logdir }}"
+  - "{{ user_path }}/{{ deploy_name }}/backup"

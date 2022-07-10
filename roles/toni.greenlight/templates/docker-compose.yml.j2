@@ -1,38 +1,39 @@
 ---
 version: '3.7'
 networks:
-  nginx_net:
+  {{ nginx_network_name }}:
     external: true
-  greenlight:
+  {{ stack_network_name }}:
+    external: true
 
 services:
-  greenlight:
+  {{ deploy_name }}:
     entrypoint: [bin/start]
     image: "{{ greenlight_docker_image }}"
-    container_name: greenlight-v2
     env_file: .env
     volumes:
     - "{{ greenlight_logdir }}:/usr/src/app/log"
 #    - "./application_controller.rb:/usr/src/app/app/controllers/application_controller.rb"
-{% if greenlight_db_docker %}
-    depends_on:
-    - db
-{% endif %}
-    restart: unless-stopped
     networks:
-      - nginx_net
-      - greenlight
+      - {{ nginx_network_name }}
+      - {{ stack_network_name }}
 
-{% if greenlight_db_docker %}
-  db:
-    image: postgres:12
-    volumes:
-    - /var/lib/postgresql:/var/lib/postgresql/data
-    environment:
-      POSTGRES_DB: "{{ greenlight_db_name }}"
-      POSTGRES_USER: "{{ greenlight_db_user }}"
-      POSTGRES_PASSWORD: "{{ greenlight_db_pass }}"
-    restart: unless-stopped
-    networks:
-      - greenlight
-{% endif %}
+  {{ deploy_name }}_postgres:
+      image: {{ greenlight_pg_image }}
+      volumes:
+        - {{ deploy_name }}_postgres_vol:/var/lib/postgresql/data
+        - /etc/localtime:/etc/localtime:ro
+      environment:
+        POSTGRES_DB: "{{ greenlight_db_name }}"
+        POSTGRES_USER: "{{ greenlight_db_user }}"
+        POSTGRES_PASSWORD: "{{ greenlight_db_pass }}"
+      networks:
+        - {{ stack_network_name }}
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U {{ greenlight_db_user }} -d {{ greenlight_db_name }}"]
+        interval: 10s
+        timeout: 5s
+        retries: 5     
+
+volumes:
+  {{ deploy_name }}_postgres_vol:

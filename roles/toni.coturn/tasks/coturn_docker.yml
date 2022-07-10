@@ -2,7 +2,12 @@
 - name: Create coturn directory
   file:
     state: directory
-    path: "{{ user_path }}/coturn"
+    path: "{{ user_path }}/{{ deploy_name }}"
+
+- name: Deploy Make
+  template:
+    src: "Makefile.j2"
+    dest: "{{ user_path }}/{{ deploy_name }}/Makefile"
 
 - name: register facts for use in client
   set_fact:
@@ -28,7 +33,7 @@
 - name: Deploy docker-compose file
   template:
     src: docker_compose_turn.conf.j2
-    dest: "{{ user_path }}/coturn/docker-compose.yml"
+    dest: "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
   notify: restart coturn docker
 
 - name: Copy nginx stream config
@@ -39,7 +44,7 @@
 - name: Copy coturn config-file
   template:
     src: "turnserver.conf.j2"
-    dest: "{{ user_path }}/coturn/turnserver.conf"
+    dest: "{{ user_path }}/{{ deploy_name }}/turnserver.conf"
   vars:  
     nginx_ssl_stream_config: true
     external_ip_mapping: "{{ turn_inet_ip }}/{{ internal_nginx_docker_ip }}"
@@ -48,7 +53,7 @@
 - name: Copy coturn config-file
   template:
     src: "turnserver.conf.j2"
-    dest: "{{ user_path }}/coturn/turnserver2.conf"
+    dest: "{{ user_path }}/{{ deploy_name }}/turnserver2.conf"
   vars:  
     nginx_ssl_stream_config: true
     external_ip_mapping: "{{ turn_inet_ip }}"
@@ -57,19 +62,20 @@
 - name: Copy coturn config-file
   template:
     src: "turnserver.conf.j2"
-    dest: "{{ user_path }}/coturn/turnserver3.conf"
+    dest: "{{ user_path }}/{{ deploy_name }}/turnserver3.conf"
   vars:  
     nginx_ssl_stream_config: true
     external_ip_mapping: "{{ turn_inet_ip }}"
     listening_ip: "10.10.10.5"
 
-- name: start coturn docker
-  docker_compose:
-    project_src: "{{ user_path }}/coturn"
-    restarted: yes    
+- name: First start Coturn, Nginx streaming needs DNS targets // ON SERVER REBOOT coturn needs manual restart with make // will be healed by nightly cron 
+  shell: make
+        -C {{ user_path }}/{{ deploy_name }} restart
 
-- name: Launch docker-compose
-  when: nginx_run_as is not defined or nginx_run_as=="docker" or nginx_run_as=="streamproxy"
-  docker_compose:
-    project_src: "{{ user_path }}/openresty"
-    restarted: yes
+- name: Restart daily by cron file under /etc/cron.d
+  cron:
+    name: Restart Coturn
+    minute: "0"
+    hour: "4"
+    user: root
+    job: "make -C {{ user_path }}/{{ deploy_name }} restart"    

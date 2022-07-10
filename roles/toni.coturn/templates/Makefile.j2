@@ -1,0 +1,21 @@
+TAIL=20
+d=$$(date +%Y%m%d_%H:%M:%S)
+
+NGINX := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ nginx_stack }}_nginx-proxy.*")
+
+restart: stopnginx stopturn startturn startnginx
+rm: stopnginx stopturn
+deploy: startturn startnginx
+
+
+stopnginx:
+	docker-compose -f ../{{ nginx_stack }}/docker-compose.yml down
+
+stopturn:
+	docker-compose down
+
+startnginx:
+	docker-compose -f ../{{ nginx_stack }}/docker-compose.yml up -d
+
+startturn:
+	docker-compose up -d

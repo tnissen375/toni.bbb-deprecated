@@ -2,17 +2,15 @@
 version: '3.7'
 
 networks:
-  stack_com:
+  {{ stack_network_name }}:
     external: true
 
 services:
-  prometheus:
-    container_name: prometheus
+  {{ deploy_name }}:
     #check for latest: https://hub.docker.com/r/prom/prometheus/tags
-    image: prom/prometheus:v2.21.0
+    image: {{ prom_image }}
     networks:
-      - stack_com
-    user: root
+      - {{ stack_network_name }}
     command:
       # Default commands from Dockerfile
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -25,6 +23,5 @@ services:
     volumes:
       - "./prometheus.yml:/etc/prometheus/prometheus.yml"
       - "{{ prometheus_data_dir }}:/prometheus"
-    restart: unless-stopped
 
 

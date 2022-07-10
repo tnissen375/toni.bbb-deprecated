@@ -75,14 +75,16 @@ proxy_set_header Proxy "";
 
 server {
         server_name _; # This is just an invalid value which will never trigger on a real hostname.
-        listen 80;
-        access_log /var/log/nginx/access.log main;
+        listen 80 default_server;
+        # logs could be seperated in special file to analyze, nearly all requests will be attacks / we discard them for now
+        access_log /dev/null;
         return 503;
 }
 server {
         server_name _; # This is just an invalid value which will never trigger on a real hostname.
-        listen 443 ssl http2;
-        access_log /var/log/nginx/access.log main;
+        listen 443 default_server ssl http2;
+        # logs could be seperated in special file to analyze, nearly all requests will be attacks / we discard them for now
+        access_log /dev/null;
         return 503;
         ssl_session_tickets off;
         ssl_certificate /etc/ssl/dummy-ssl-fallback.crt; 

@@ -7,6 +7,12 @@ sip_phone_number: ""
 sip_username: ""
 sip_password: ""
 
+dir_exists:
+  - "/usr/share/bbb-web/WEB-INF/classes"
+  - "/usr/share/bigbluebutton/nginx"
+
+container_cert_path: "/etc/letsencrypt/live/{{ inventory_hostname }}/fullchain.pem"
+container_key_path: "/etc/letsencrypt/live/{{ inventory_hostname }}/privkey.pem"
 
 # defaultGuestPolicy -> Valid values are ALWAYS_ACCEPT, ALWAYS_DENY, ASK_MODERATOR
 bigbluebutton_config:

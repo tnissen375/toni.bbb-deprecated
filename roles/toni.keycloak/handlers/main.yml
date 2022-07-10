@@ -1,6 +1,0 @@
----
-- name: restart keycloak
-  docker_compose:
-    project_src: "{{ user_path }}/keycloak"
-    #remove_volumes: yes
-    remove_orphans: yes

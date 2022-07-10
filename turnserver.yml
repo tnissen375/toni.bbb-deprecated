@@ -4,22 +4,50 @@
 #   tasks:
 #   - name: Certificate paths as facts
 #     import_role: { name: toni.certificates, tasks_from: facts }
-    
+  
+- name: Docker
+  hosts: turn
+  strategy: free
+  remote_user: root
+  gather_facts: yes
+  roles:
+     - {
+       role: toni.docker,
+       node_exporter_ip: "{{ wg_client_ip|default('10.8.0.1') }}"
+       }    
+
+- hosts: turn
+  remote_user: root
+  gather_facts: yes
+  roles:
+    - {
+        role: toni.openresty,
+        openresty_image: "registry.toni-media.com_openresty:1.21.4.1-alpine-fat",
+        nginx_run_as: "streamproxy",
+        force_images: true,
+        tags: [ host, openresty ]
+      }
+  vars:
+   - nginx_domain: "yd2m.com"
+   - nginx_stack: "openresty"
+
 - name: CoTurn Server
   hosts: turn
   become: yes
   roles:
-    - toni.openresty
     - toni.coturn
   vars:
+   - existing_certs: 'false'
    - auth_bypass: "True"
    - force_images: "True"
-   #- existing_certs: false
    - letsencrypt_email: "jidumailer@gmail.com"
-#   - turn_hostname: turn.{{ domain }}
+   - turn_hostname: turn.{{ domain }}
    - nginx_run_as: "streamproxy"
    - stun_port: 8080
    - turn_port: 7443
    - nginx_docker_ports: [ "80:80/udp", "80:80/tcp", "443:443/tcp" ]
-#   - network_mode: "host"
    - docker_network_ip: 10.10.10.2
+   # - nginx_domain: "toni-media.com" #  without subdomain
+   # - nginx_stack: "openresty"
+#   - network_mode: "host"
+   #- existing_certs: false

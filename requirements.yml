@@ -1,6 +1,6 @@
 ---
 roles:
- - name: geerlingguy.pip
+#  - name: geerlingguy.pip
  - name: n0emis.bigbluebutton
    src: https://github.com/n0emis/ansible-role-bigbluebutton.git
  - name: geerlingguy.nodejs
@@ -18,7 +18,7 @@ roles:
  - name: toni.buildimages
    src: git+https://github.com/tnissen375/toni.buildimages.git
  - name: toni.wg-client
-   src: git+https://github.com/tnissen375/toni.wg-client
+   src: git+https://github.com/tnissen375/toni.wg-client.git
  - name: toni.wg-server
    src: git+https://github.com/tnissen375/toni.wg-server.git 
  - name: toni.base

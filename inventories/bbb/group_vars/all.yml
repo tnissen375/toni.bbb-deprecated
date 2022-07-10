@@ -1,5 +1,12 @@
 ---
-domain: "toni-media.com"
+domain: "yd2m.com"
+registry: "yd2m.com"
+nginx_network_name: "nginx_net"
+nginx_conf_dir: "/etc/nginx"
+nginx_stack_keep_alive: false
+nginx_swarm_real_ip: 'true'
+nginx_stack: "openresty"
+letsencrypt_email: "jidumailer@gmail.com"
 #Auf allen hosts ist Python 3 installiert // Get rid of deprecation warning
 ansible_python_interpreter: /usr/bin/python3
 configure_turnserver: 'true'
@@ -10,14 +17,21 @@ configure_wireguard: 'true'
 configure_monitoring: 'true'
 configure_sip: 'true'
 bbb_mount_tmpfs: 'true'
-existing_certs: 'true'
+existing_certs: 'false'
 enable_clear_dockerlogs: 'true'
+#openresty_image: "registry.yd2m.com/openresty:1.21.4.1-alpine-fat"
+force_rebuild: false
+images:
+   - { namespace: "registry.{{ registry }}", name: "openresty_base", tag: "1.21.4.1", basenamespace: "", basename: "alpine", basetag: "3.14" }
+   - { namespace: "registry.{{ registry }}", name: "openresty_base_fat", tag: "1.21.4.1-alpine-fat", basenamespace: "", basename: "openresty_base", basetag: "1.21.4.1" }
+   - { namespace: "registry.{{ registry }}", name: "openresty", tag: "1.21.4.1-alpine-fat", basenamespace: "", basename: "openresty_base_fat", basetag: "1.21.4.1-alpine-fat" }
+   - { namespace: "registry.{{ registry }}", name: "scalelite", tag: "1.21.4.1-alpine-fat", basenamespace: "", basename: "openresty", basetag: "1.21.4.1-alpine-fat" }
 
 ### externe bbb rolle
 bbb_meteor:
   public:
     app:
-      helpLink: "https://personal.pages.toni-media.com/bbb"
+      helpLink: "https://personal.pages.yd2m.com/bbb"
       mirrorOwnWebcam: true
       clientTitle: "BBB VC"
     kurento:
@@ -170,14 +184,14 @@ greenlight_db_pass: !vault |
 
 greenlight_db_docker: yes
 greenlight_create_admin: 'true'
-greenlight_admin_email: jidumailer@gmail.com
+greenlight_admin_email: 
 greenlight_admin_password: !vault |
           $ANSIBLE_VAULT;1.2;AES256;bbb
-          34396461363734333038613033343534343032656130616335363562396634353231633963633931
-          6338326663656138626636663739653466363030383262330a306639336333313537333938613838
-          61623033303466313539346231353663326130623062333561663937353932326439633365326538
-          6336373335323435370a393239653236643634643865653461383265303163366135393464663730
-          31316436316661393862633533356235386331393632626130633863316663363439
+          36643232306334626135303461323933323536613363633866316136623831333139613031626664
+          3339666337343761336537656239303738323263653833620a646334346439306335646634343362
+          38643461326438353030356630386137373765623733386137363366633531613965613431303938
+          3634396637356338660a303833326666613734343932323632316636623864366266646334633135
+          62303264353366356634623334313437626132323063303866363930653132636561
 
 #greenlight_ldap not used -> commented in roles templates/.env 
 #connect ldap to keycloak instead
@@ -207,7 +221,7 @@ turn_secret: !vault |
           65306264646130623630643133303032333034386233346565363832333139643261646634316464
           3537316661306662313935363634653566386264303736316666
 
-grafana_postgres_password: !vault |
+grafana_db_password: !vault |
           $ANSIBLE_VAULT;1.2;AES256;bbb
           63653339333161366239333266303733346562346666663333666136376439666235653731643461
           3537633739616336663536663331633363323030323436360a643364653663376235383136346665
@@ -222,6 +236,41 @@ grafana_admin_password: !vault |
           35303730633634346534386435626230333266623232306638653262306137366436366134323666
           3537646130383964370a333831646365316137316533653032383437353430636139383934313733
           33373338333865633935636566383833643233333866386138636130383537666232
+
+keycloak_domain: "key.{{ domain }}"
+keycloak_redirect: "https://lb.{{ nginx_domain }}/auth/login"
+keycloak_root_url: "https://lb.{{ nginx_domain }}/"
+keycloak_redirect_uris:
+  - "https://{{ nginx_domain }}/*"
+  - "https://lb.{{ nginx_domain }}/*"
+  - "https://ui.{{ nginx_domain }}/*"
+  - "https://mon.{{ nginx_domain }}/*"
+
+keycloak_full_scope_allowed: true
+keycloak_web_origins: "{{ keycloak_redirect_uris }}"
+
+openresty_session_secret: !vault |
+          $ANSIBLE_VAULT;1.2;AES256;bbb
+          31353930383437356666633536333363373565646563393730353762383964383264396634333937
+          3031636638303235393061613235643137336533643163320a346332353035353338356366313961
+          62303264396662376332366663396135633834326361633061616437303964336362633131343363
+          6638313237383064340a643061303862323031643236363165333139336330323532323563323637
+          35353566303965396238393038616433633964323334393934326532343033643535626434626434
+          3663666234306535326662313066333937656563346461373766
+
+### Keycloak
+keycloak_client_name: 'Nginx'
+keycloak_realm: 'Intern'
+auth_provider_domain: 'key.{{ nginx_domain }}' 
+
+keycloak_client_secret: !vault |
+          $ANSIBLE_VAULT;1.2;AES256;bbb
+          35313764646166636432326239313065363331333930626661666466396663336632333164623732
+          6137666138663430353463663736623434656435643438660a383861323864353337346134313962
+          39663432626537326434396565353330386564353563613337663533313062653062333439346535
+          6565323633336261610a363130333666653939363735613335646633373032626335626263346137
+          35666135613963326335396530356566656564313664303830393931616531653933613764363866
+          3333313638326461623165356335366536363236373638383535
 
 keycloak_db_name: "keycloak"
 keycloak_db_user: "admin"
@@ -243,22 +292,23 @@ keycloak_admin_pass: !vault |
 
 keycloak_smtp_password: !vault |
           $ANSIBLE_VAULT;1.2;AES256;bbb
-          34666230356139666361633230306333663734383132663632316466313432333562653561353866
-          3363663639633436343438613062313165653961656332620a323262336364356466666537373132
-          39646433333234323334653065633631343461396134626166323061356262323033616638653736
-          3732626539313963660a626662613364373365303666303638383436613331353832313433623237
-          39383635353933333738353037656639623466333734336238336563353633643264
+          31613539353162663464326335366465616663336162313132333931633563623661646661346631
+          3766373266623938306237376536616134646262373036340a633861366632376466346335626334
+          34303835616336393662633464643439336164393666353834326235326164373064303062396163
+          3666626265396434320a656363353762666139306264613230646265343232333361663662616162
+          34626636313136393263313732366630633631323265383930633035666630323030
 
 keycloak_smtp_tls: "true"
 keycloak_smtp_auth: "true"
 keycloak_smtp_port: "587"
-keycloak_smtp_host: "smtp.gmail.com"
-keycloak_smtp_from: "jidumailer@gmail.com"
-keycloak_smtp_display_name: "jidumailer"
+keycloak_smtp_host: "mail.{{domain}}"
+keycloak_smtp_from: "no-reply@{{domain}}"
+keycloak_smtp_display_name: "no-reply"
 keycloak_smtp_ssl: "false"
-keycloak_smtp_user: "jidumailer@gmail.com"
-keycloak_user_username: 'jidu'
-keycloak_user_firstName: "ji"
-keycloak_user_lastName: "du"
-keycloak_user_email: "jidumailer@gmail.com"
+keycloak_smtp_user: "no-reply@{{domain}}"
+#beside admin this user will be created in keycloak
+keycloak_user_username: 'no-reply'
+keycloak_user_firstName: "no"
+keycloak_user_lastName: "reply"
+keycloak_user_email: "no-reply@{{domain}}"
 keycloak_user_locale: "de"

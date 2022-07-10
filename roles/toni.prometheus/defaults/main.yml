@@ -1,0 +1,14 @@
+---
+user: "root"
+user_path: "/root"
+configure_ipv4_stack_hostname: true
+configure_ipv6_stack_hostname: false
+stack_network_name: 'grafana'
+deploy_name: "prometheus"
+
+prom_image: "prom/prometheus:v2.36.1"
+
+dir_exists:
+  - "{{ user_path }}/{{ deploy_name }}/backup"
+
+prometheus_data_dir: "{{ user_path }}/{{ deploy_name }}/data"

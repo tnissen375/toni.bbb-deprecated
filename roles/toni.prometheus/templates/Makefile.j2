@@ -1,0 +1,20 @@
+TAIL=20
+d=$$(date +%Y%m%d_%H:%M:%S)
+
+SERVICE := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ deploy_name }}_{{ deploy_name }}\.*")
+NGINX := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ nginx_stack }}_nginx-proxy\.*")
+
+rm:
+	docker stack rm {{ deploy_name }}
+
+deploy:
+	docker stack deploy -c docker-compose.yml {{ deploy_name }} && docker exec -it $(NGINX) nginx -s reload
+
+ps:
+	docker stack ps {{ deploy_name }} --no-trunc
+
+log:
+	docker service logs -f $(SERVICE) --tail ${TAIL} --raw
+
+exec:
+	docker exec -it $(SERVICE) /bin/bash

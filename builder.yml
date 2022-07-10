@@ -4,11 +4,11 @@
   gather_facts: yes
   roles:
     - {
-        role: base,
+        role: toni.base,
         configure_firewall: 'true'
       }
     - {
-        role: docker
+        role: toni.docker
       }
     - {
         role: geerlingguy.ntp,
@@ -21,11 +21,12 @@
         ]
       }
     - {
-        role : toni.buildimages
+        role : toni.buildimages,
+        nginx_domain: "{{ domain }}"
       }
   vars:
     images:
-      - { namespace: "registry.toni-media.com", name: "openresty_base", tag: "1.19.3.1-2", basenamespace: "", basename: "alpine", basetag: "3.12" }
-      - { namespace: "registry.toni-media.com", name: "openresty_base_fat", tag: "1.19.3.1-2-alpine-fat", basenamespace: "", basename: "openresty_base", basetag: "1.19.3.1-2" }
-      - { namespace: "registry.toni-media.com", name: "openresty", tag: "1.19.3.1-2-alpine-fat", basenamespace: "", basename: "openresty_base_fat", basetag: "1.19.3.1-2-alpine-fat" }
-      - { namespace: "registry.toni-media.com", name: "scalelite", tag: "1.19.3.1-2-alpine-fat", basenamespace: "", basename: "openresty", basetag: "1.19.3.1-2-alpine-fat" }
+      - { namespace: "registry.{{ registry }}", name: "openresty_base", tag: "1.21.4.1", basenamespace: "", basename: "alpine", basetag: "3.15" }
+      - { namespace: "registry.{{ registry }}", name: "openresty_base_fat", tag: "1.21.4.1-alpine-fat", basenamespace: "", basename: "openresty_base", basetag: "1.21.4.1" }
+      - { namespace: "registry.{{ registry }}", name: "openresty", tag: "1.21.4.1-alpine-fat", basenamespace: "", basename: "openresty_base_fat", basetag: "1.21.4.1-alpine-fat" }
+      - { namespace: "registry.{{ registry }}", name: "scalelite", tag: "1.21.4.1-alpine-fat", basenamespace: "", basename: "openresty", basetag: "1.21.4.1-alpine-fat" }

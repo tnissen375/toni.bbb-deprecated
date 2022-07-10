@@ -1,7 +1,7 @@
 ---
 - name: Enable hosts to scalelite
   shell: >-
-    docker exec scalelite-api 
+    docker exec $(docker ps -a | grep "Up" | awk '{print $NF}' | grep -w "{{ deploy_name }}_scalelite-api\.*") 
     ./bin/rake servers 
     | grep -o "id:.*$" | grep -o "[^ ]*$"
   register: instances
@@ -10,7 +10,7 @@
 
 - name: Remove
   shell: >-
-    docker exec scalelite-api 
+    docker exec $(docker ps -a | grep "Up" | awk '{print $NF}' | grep -w "{{ deploy_name }}_scalelite-api\.*")
     ./bin/rake servers:remove[{{ item }}]
   loop: 
     "{{ instances.stdout_lines|list }}"

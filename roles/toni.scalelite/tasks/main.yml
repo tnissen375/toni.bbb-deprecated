@@ -27,6 +27,28 @@
   loop:
     "{{ dir_exists }}"
 
+- name: Deploy Make
+  template:
+    src: "Makefile.j2"
+    dest: "{{ user_path }}/{{ deploy_name }}/Makefile"
+
+- name: Deploy scalelite-ssl
+  template:
+    src: "scalelite-ssl.template.j2"
+    dest: "{{ user_path }}/{{ deploy_name }}/scalelite-ssl.template"
+
+# - name: install docker
+#   include_role:
+#     name: toni.docker
+#     tasks_from: main
+#   vars:
+#     node_exporter_ip: "{{ wg_client_ip|default('10.8.0.1') }}"
+#     docker_network_driver: 'overlay' #trigger swarm
+#     ipam_driver_options:
+#       encrypted: "false"
+#     docker_networks:
+#       - { name: "{{ stack_network_name }}", subnet: "{{ stack_subnet }}", driver: "overlay", internal: 'no', gateway: "" }
+
 - name: remove images
   when: force_images|default(false)
   docker_image:
@@ -54,7 +76,7 @@
 - name: Deploy nginx.conf
   template:
     src: nginx.conf.j2
-    dest: "{{ user_path }}/scalelite/nginx.conf"
+    dest: "{{ user_path }}/{{ deploy_name }}/nginx.conf"
 
 - name: Copy snippets
   include_role:
@@ -68,8 +90,8 @@
 
 - name: Deploy default conf
   template:
-    src: roles/scalelite/templates/nginx_default.conf.j2
-    dest: "{{ user_path }}/scalelite/default.conf"
+    src: nginx_default.conf.j2
+    dest: "{{ user_path }}/{{ deploy_name }}/default.conf"
 
 - name: Configure nginx logs
   include_role:
@@ -78,7 +100,7 @@
   vars:
     disablenotify: true
     nginx_logfiles:
-      - { conffile: "{{ user_path }}/scalelite/logs.conf", logdir: "/usr/local/openresty/nginx/logs" }
+      - { conffile: "{{ user_path }}/{{ deploy_name }}/logs.conf", logdir: "/usr/local/openresty/nginx/logs" }
 
 - name: Check for required variables
   loop:
@@ -108,14 +130,14 @@
     state: directory
     path: "{{ nfs_server_dir }}/var/bigbluebutton/spool"
     owner: 1000
-    group: 2000 
+    group: 2000
     mode: '0775'
     recurse: yes
 
 - name: Create working directory
   file:
     state: directory
-    path: "{{ nfs_server_dir }}/var/bigbluebutton/recording/scalelite"
+    path: "{{ nfs_server_dir }}/var/bigbluebutton/recording/{{ deploy_name }}"
     owner: 1000
     group: 2000
     mode: '0775'
@@ -139,7 +161,7 @@
     mode: '0775'
     recurse: yes
 
-# https://github.com/blindsidenetworks/scalelite/blob/master/bigbluebutton/README.md
+# https://github.com/blindsidenetworks/{{ deploy_name }}/blob/master/bigbluebutton/README.md
 - name: Deploy scalelite_post_publish.rb script
   loop: "{{ groups.bigbluebutton }}"
   delegate_to: "{{ item }}"
@@ -152,7 +174,7 @@
   delegate_to: "{{ item }}"
   template:
     src: scalelite.yml.j2
-    dest: /usr/local/bigbluebutton/core/scripts/scalelite.yml
+    dest: /usr/local/bigbluebutton/core/scripts/{{ deploy_name }}.yml
 
 - name: Remove all docker logs by cron file under /etc/cron.d
   when: enable_clear_dockerlogs|bool==true
@@ -172,28 +194,39 @@
 - name: Generate docker-compose.yml file
   template:
     src: docker-compose.yml.j2
-    dest: "{{ user_path }}/scalelite/docker-compose.yml"
+    dest: "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
 
-- name: Launch docker-compose
-  docker_compose:
-    project_src: "{{ user_path }}/scalelite"
-    restarted: yes
+- name: restart {{ deploy_name }} stack
+  docker_stack:
+    state: absent
+    prune: yes
+    name: "{{ deploy_name }}"
+    compose:
+      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
+
+- name: restart {{ deploy_name }} stack
+  docker_stack:
+    state: present
+    prune: yes
+    name: "{{ deploy_name }}"
+    compose:
+      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
  
 - name: Sleep for 20 seconds and continue
   wait_for:
     timeout: 10
   delegate_to: localhost
 
-# https://stackoverflow.com/questions/10301794/difference-between-rake-dbmigrate-dbreset-and-dbschemaload
-- name: Initialize Scalelite database
-  when: scalelite_db_init|bool
-  command: >-
-    docker exec -i scalelite-api bin/rake
-    {% if scalelite_db_docker %}db:create{% endif %} db:schema:load db:seed
-  ignore_errors: yes
+# # https://stackoverflow.com/questions/10301794/difference-between-rake-dbmigrate-dbreset-and-dbschemaload
+# - name: Initialize Scalelite database
+#   when: scalelite_db_init|bool
+#   command: >-
+#     docker exec -i scalelite-api bin/rake
+#     {% if scalelite_db_docker %}db:create{% endif %} db:schema:load db:seed
+#   ignore_errors: yes
 
 - name: Retrieve bigbluebutton secret keys
-  delegate_to: "{{ item }}"
+  delegate_to: "{{ item }}"
   shell: 'bbb-conf --secret | grep -o "Secret:.*$" | grep -o "[^ ]*$"'
   register: secret_keys
   loop: "{{ groups.bigbluebutton }}"
@@ -201,7 +234,7 @@
 - name: Retrieve servers status
   loop: "{{ groups.bigbluebutton }}"
   shell: >-
-    docker exec scalelite-api
+    docker exec $(docker ps -a | grep "Up" | awk '{print $NF}' | grep -w "{{ deploy_name }}_scalelite-api\.*") 
     ./bin/rake servers
     | grep -o "{{ item }}"
   ignore_errors: yes
@@ -225,6 +258,11 @@
   vars:
     certbot_server: "{{ scalelite_server }}"
   
+- name: Deploy nginx.conf
+  template:
+    src: "scalelite-ssl.template.j2"
+    dest: "{{ user_path }}/{{ deploy_name }}/scalelite-ssl.template"
+
 # - debug:
 #     var: not existing_certs|bool and certbot_cert_exists|bool
 
@@ -234,7 +272,23 @@
     src: ./snippets/certpath.conf.j2
     dest: "{{ nginx_conf_dir }}/snippets/certpath.conf"
 
-- name: Launch docker-compose
-  docker_compose:
-    project_src: "{{ user_path }}/scalelite"
-    restarted: yes
+# - name: Launch docker-compose
+#   docker_compose:
+#     project_src: "{{ user_path }}/{{ deploy_name }}"
+#     restarted: yes
+
+- name: restart {{ deploy_name }} stack
+  docker_stack:
+    state: absent
+    prune: yes
+    name: "{{ deploy_name }}"
+    compose:
+      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
+
+- name: restart {{ deploy_name }} stack
+  docker_stack:
+    state: present
+    prune: yes
+    name: "{{ deploy_name }}"
+    compose:
+      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"

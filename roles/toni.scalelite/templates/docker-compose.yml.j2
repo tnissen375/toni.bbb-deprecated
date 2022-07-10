@@ -1,48 +1,70 @@
-version: '3'
-
+version: "3.9"
 networks:
-  scalelite:
-    driver: bridge
+ {{ nginx_network_name }}:
+    driver: overlay
+    external: true
+{% if create_stack_network is defined and create_stack_network|bool==true %}      
+ {{ stack_network_name }}:
+    driver: overlay
+    external: true
+{% endif %}
+{% if enable_ipv6 is defined and enable_ipv6|bool==true %}      
+ bridge:
+    external: true
+{% endif %} 
 
 services:
 {% if scalelite_db_docker %}
-  database:
-    container_name: scalelite_postgresql
+  scalelite_postgresql:
+    #container_name: scalelite_postgresql
     image: postgres:12
-    networks: [scalelite]
     volumes:
     - /var/lib/postgresql:/var/lib/postgresql/data
     environment:
       POSTGRES_USER: '{{ scalelite_db_user }}'
       POSTGRES_PASSWORD: '{{ scalelite_db_pass }}'
-    restart: unless-stopped
+    networks:      
+{% if create_stack_network is defined and create_stack_network|bool==true %}      
+      - {{ stack_network_name }}
+{% else %}
+      - {{ nginx_network_name }}
+{% endif %}      
+    deploy:
+      restart_policy:
+        condition: on-failure
 {% endif %}
 
 {% if scalelite_redis_docker %}
-  redis:
-    container_name: scalelite_redis
+  scalelite_redis:
+    #container_name: scalelite_redis
     image: redis
-    networks: [scalelite]
+    networks:      
+{% if create_stack_network is defined and create_stack_network|bool==true %}      
+      - {{ stack_network_name }}
+{% else %}
+      - {{ nginx_network_name }}
+{% endif %}      
+    deploy:
+      restart_policy:
+        condition: on-failure
     volumes:
     - /var/lib/redis:/data
     command:
     - '--appendonly yes'
-    restart: unless-stopped
 {% endif %}
 
-  scalelite_api:
-    container_name: scalelite-api
-    image: blindsidenetwks/scalelite:v1.0.7-api
-    networks: [scalelite]
-{% if scalelite_db_docker or scalelite_redis_docker %}
-    depends_on: &DEPENDS
-{% if scalelite_db_docker %}
-    - database
-{% endif %}
-{% if scalelite_redis_docker %}
-    - redis
-{% endif %}
-{% endif %}
+  scalelite-api:
+    #container_name: scalelite-api
+    image: blindsidenetwks/scalelite:{{ blindside_version }}-api
+    networks:      
+{% if create_stack_network is defined and create_stack_network|bool==true %}      
+      - {{ stack_network_name }}
+{% else %}
+      - {{ nginx_network_name }}
+{% endif %}      
+    deploy:
+      restart_policy:
+        condition: on-failure
     volumes:
     - "{{ nfs_server_dir }}/var/bigbluebutton:/var/bigbluebutton"
     environment: &ENVS
@@ -50,17 +72,21 @@ services:
       SECRET_KEY_BASE: {{ scalelite_secret_key }}
       LOADBALANCER_SECRET: {{ scalelite_loadbalancer_key }}
       DATABASE_URL: "postgresql://{{ scalelite_db_user }}:{{ scalelite_db_pass }}@{{ 'database' if scalelite_db_docker else scalelite_db_host }}:5432/{{ scalelite_db_name }}"
-      REDIS_URL: redis://{{ 'redis' if scalelite_redis_docker else scalelite_redis_host }}
+      REDIS_URL: redis://scalelite_redis
       RAILS_LOG_TO_STDOUT: 'true'
-    restart: unless-stopped
 
-  scalelite_nginx:
-    container_name: scalelite-nginx
+  scalelite-nginx:
+    #container_name: scalelite-nginx
     image: "{{ image_scalelite }}"
-    networks: [scalelite]
-{% if scalelite_db_docker or scalelite_redis_docker %}
-    depends_on: *DEPENDS
-{% endif %}
+    networks:      
+{% if create_stack_network is defined and create_stack_network|bool==true %}      
+      - {{ stack_network_name }}
+{% else %}
+      - {{ nginx_network_name }}
+{% endif %}      
+    deploy:
+      restart_policy:
+        condition: on-failure
     ports:
     - 80:80
     - 443:443
@@ -71,6 +97,7 @@ services:
     - /etc/nginx/snippets/logs.conf:/etc/nginx/snippets/logs.conf
     - /etc/nginx/snippets/auth.conf:/etc/nginx/snippets/auth.conf
     - /root/scalelite/default.conf:/etc/nginx/conf.d/default.conf
+    - /root/scalelite/scalelite-ssl.template:/etc/nginx/conf.d/scalelite-ssl.template
     - /etc/localtime:/etc/localtime:ro
 {% if existing_certs is defined and existing_certs|bool==true %}
     - {{ lookup('vars', certificates.0 + '_pem_path') }}:{{ lookup('vars', certificates.0 + '_pem_path') }}
@@ -82,26 +109,34 @@ services:
     environment:
       <<: *ENVS
       NGINX_SSL: 'true'
-    restart: unless-stopped
 
-  scalelite_poller:
-    container_name: scalelite-poller
-    image: blindsidenetwks/scalelite:v1.0.7-poller
-    networks: [scalelite]
-{% if scalelite_db_docker or scalelite_redis_docker %}
-    depends_on: *DEPENDS
-{% endif %}
+  scalelite-poller:
+    #container_name: scalelite-poller
+    image: blindsidenetwks/scalelite:{{ blindside_version }}-poller
+    networks:      
+{% if create_stack_network is defined and create_stack_network|bool==true %}      
+      - {{ stack_network_name }}
+{% else %}
+      - {{ nginx_network_name }}
+{% endif %}      
+    deploy:
+      restart_policy:
+        condition: on-failure
     environment: *ENVS
-    restart: unless-stopped
 
-  scalelite_recording_importer:
-    container_name: scalelite-recording-importer
-    image: blindsidenetwks/scalelite:v1.0.7-recording-importer
-    networks: [scalelite]
-{% if scalelite_db_docker or scalelite_redis_docker %}
-    depends_on: *DEPENDS
-{% endif %}
+
+  scalelite-recording_importer:
+    #container_name: scalelite-recording-importer
+    image: blindsidenetwks/scalelite:{{ blindside_version }}-recording-importer
+    networks:      
+{% if create_stack_network is defined and create_stack_network|bool==true %}      
+      - {{ stack_network_name }}
+{% else %}
+      - {{ nginx_network_name }}
+{% endif %}      
+    deploy:
+      restart_policy:
+        condition: on-failure
     volumes:
     - "{{ nfs_server_dir }}/var/bigbluebutton:/var/bigbluebutton"
     environment: *ENVS
-    restart: unless-stopped

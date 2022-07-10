@@ -1,6 +1,9 @@
-# toni.bbb
+# toni.bbb 2.5 alpha
+**Upgraded to BBB 2.5** - use at own risk
+Configuration is not "privacy by default" atm. You have to check all configuration files before using it in production.
+Documentation has to be renewed, configuration-options have to be checked.
 
-This project started a few month ago. I wanted to setup an [BigBlueButton](https://bigbluebutton.org/) installation which respects all possible privacy aspects out of the box. It should still be simple to setup. At first I thought about deploying BigBlueButton to Kubernetes. After I found out that this is not an option at all, I played around with the existing ansible roles, referenced by the official BigBlueButton documentation. These roles have been my starting point. Because there have been some shortcommings and I never tried ansible before I decided to give it a try and create some ansible roles by myself. 
+This project started in 2020. I wanted to setup an [BigBlueButton](https://bigbluebutton.org/) installation which respects all possible privacy aspects out of the box. It should still be simple to setup. At first I thought about deploying BigBlueButton to Kubernetes. After I found out that this is not an option at all, I played around with the existing ansible roles, referenced by the official BigBlueButton documentation. These roles have been my starting point. Because there have been some shortcommings and I never tried ansible before I decided to give it a try and create some ansible roles by myself. 
 
 I wanted to be able to deploy a private (SSO) and scaleable installation of BigBlueButton behind a reverse-proxy (openresty).
 The goal was to reuse as much componets as possible. So i decided to use openresty on the scalelite and BigBlueButton server as well.
@@ -37,7 +40,7 @@ For this setup an modified [scalelite](https://github.com/blindsidenetworks/scal
 
 Beside scalelite a wireguard (VPN) server gets installed on this machine. This server will also be used as NFS4 server, so that all BigBlueButton servers can store their files securely over VPN. Normally we would seperate scalelite from the NFS server. (If you are interested in an HA setup, you will want to install more than 1 scalelite loadbalancer).
 
-###### Server: turn.toni-media.com
+###### Server: turn.<your-domain.com>
 
 - Openresty (docker)
 - 3 CoTurn (docker)
@@ -48,7 +51,7 @@ Off course there may be some limitations of my setup but openresty as stream pro
 
 By now I have not been able to get the stream proxy working with keycloak authentication but its not necessary at all because of the coturn secret which will be used.
 
-###### Server: bbb1. bbb2. and bbb3.toni-media.com  
+###### Server: bbb1.<your-domain.com> bbb2.<your-domain.com> and bbb3.<your-domain.com>
 
 - BigBlueButton 
 - Openresty (docker, replaces nginx)

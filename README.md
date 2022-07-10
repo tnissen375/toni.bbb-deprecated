@@ -90,7 +90,7 @@ ansible-vault encrypt_string --stdin-name 'VARIABLE NAME HERE' --vault-id bbb@va
 # Installation:
 Clone the repository
 
-'''
+```
 # Enter cloned repo and install requirements
 ansible-galaxy install -r requirements.yml
 
@@ -103,6 +103,7 @@ ansible-playbook ./bbb.yml -i ./inventories/bbb --vault-id bbb@vault
 
 # Install frontend-server (Greenlight, Keycloak, Grafana, Prometheus)
 ansible-playbook ./frontend.yml -i ./inventories/bbb_frontend --vault-id bbb@vault
+```
 
 ... not finished ...
-Next: publish role and describe configuration
+Next: Tests, describe configuration,...

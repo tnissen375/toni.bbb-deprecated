@@ -34,7 +34,7 @@
 
 - import_playbook: turnserver.yml
   tags: turn
- when: configure_turnserver|bool
+  when: configure_turnserver|bool
 
 - name: Setup BBB Server
   hosts: bigbluebutton

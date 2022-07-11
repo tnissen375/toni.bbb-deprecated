@@ -1,6 +1,6 @@
 ---
-domain: "yd2m.com"
-registry: "yd2m.com"
+domain: "toni-media.com"
+registry: "toni-media.com"
 nginx_network_name: "nginx_net"
 nginx_conf_dir: "/etc/nginx"
 nginx_stack_keep_alive: false
@@ -19,7 +19,7 @@ configure_sip: 'true'
 bbb_mount_tmpfs: 'true'
 existing_certs: 'false'
 enable_clear_dockerlogs: 'true'
-#openresty_image: "registry.yd2m.com/openresty:1.21.4.1-alpine-fat"
+#openresty_image: "registry.toni-media.com/openresty:1.21.4.1-alpine-fat"
 force_rebuild: false
 images:
    - { namespace: "registry.{{ registry }}", name: "openresty_base", tag: "1.21.4.1", basenamespace: "", basename: "alpine", basetag: "3.14" }
@@ -31,7 +31,7 @@ images:
 bbb_meteor:
   public:
     app:
-      helpLink: "https://personal.pages.yd2m.com/bbb"
+      helpLink: "https://personal.pages.toni-media.com/bbb"
       mirrorOwnWebcam: true
       clientTitle: "BBB VC"
     kurento:

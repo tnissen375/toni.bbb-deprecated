@@ -28,7 +28,7 @@
         tags: [ host, openresty ]
       }
   vars:
-   - nginx_domain: "yd2m.com"
+   - nginx_domain: "toni-media.com"
    - nginx_stack: "openresty"
 
 - name: CoTurn Server

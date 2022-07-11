@@ -4,7 +4,7 @@
 
 # - debug:
 #     msg:
-#       "turn_hostname": "{{ hostvars['turn.yd2m.com']['turn_hostname'] }}"
+#       "turn_hostname": "{{ hostvars['turn.toni-media.com']['turn_hostname'] }}"
 
 - name: Configure Turnserver
   when: configure_turnserver|bool

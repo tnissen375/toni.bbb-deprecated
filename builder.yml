@@ -22,7 +22,8 @@
       }
     - {
         role : toni.buildimages,
-        nginx_domain: "{{ domain }}"
+        nginx_domain: "{{ domain }}",
+        force_rebuild: true, # is not workin -> always true // todo: repair tar check
       }
   vars:
     images:

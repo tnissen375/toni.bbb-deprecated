@@ -37,17 +37,17 @@
     src: "scalelite-ssl.template.j2"
     dest: "{{ user_path }}/{{ deploy_name }}/scalelite-ssl.template"
 
-# - name: install docker
-#   include_role:
-#     name: toni.docker
-#     tasks_from: main
-#   vars:
-#     node_exporter_ip: "{{ wg_client_ip|default('10.8.0.1') }}"
-#     docker_network_driver: 'overlay' #trigger swarm
-#     ipam_driver_options:
-#       encrypted: "false"
-#     docker_networks:
-#       - { name: "{{ stack_network_name }}", subnet: "{{ stack_subnet }}", driver: "overlay", internal: 'no', gateway: "" }
+- name: install docker
+  include_role:
+    name: toni.docker
+    tasks_from: main
+  vars:
+    node_exporter_ip: "{{ wg_client_ip|default('10.8.0.1') }}"
+    docker_network_driver: 'overlay' #trigger swarm
+    ipam_driver_options:
+      encrypted: "false"
+    docker_networks:
+      - { name: "{{ stack_network_name }}", subnet: "{{ stack_subnet }}", driver: "overlay", internal: 'no', gateway: "" }
 
 - name: remove images
   when: force_images|default(false)

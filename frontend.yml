@@ -64,6 +64,19 @@
         tags: [ greenlight ]
       }
 
+- hosts: wg_server
+  name: wg ip facts (server) used by prometheus
+  tasks:
+  - name: facts
+    import_role: { name: toni.wg-server, tasks_from: facts }
+
+- hosts: wg_clients
+  name: wg ip facts (clients) used by prometheus
+  tasks:
+  - name: facts
+    import_role: { name: toni.wg-client, tasks_from: facts }
+
+
 # seperated into second run
 # greenlight / garfana default vars got messed/mixed?!
 - hosts: frontend

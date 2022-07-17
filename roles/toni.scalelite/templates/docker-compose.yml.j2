@@ -15,12 +15,12 @@ networks:
 
 services:
 {% if scalelite_db_docker %}
-  scalelite_postgresql:
-    #container_name: scalelite_postgresql
+  scalelite-postgresql:
     image: postgres:12
     volumes:
     - /var/lib/postgresql:/var/lib/postgresql/data
     environment:
+      POSTGRES_DB: '{{ scalelite_db_name }}'
       POSTGRES_USER: '{{ scalelite_db_user }}'
       POSTGRES_PASSWORD: '{{ scalelite_db_pass }}'
     networks:      
@@ -35,8 +35,7 @@ services:
 {% endif %}
 
 {% if scalelite_redis_docker %}
-  scalelite_redis:
-    #container_name: scalelite_redis
+  scalelite-redis:
     image: redis
     networks:      
 {% if create_stack_network is defined and create_stack_network|bool==true %}      
@@ -54,7 +53,6 @@ services:
 {% endif %}
 
   scalelite-api:
-    #container_name: scalelite-api
     image: blindsidenetwks/scalelite:{{ blindside_version }}-api
     networks:      
 {% if create_stack_network is defined and create_stack_network|bool==true %}      
@@ -71,12 +69,11 @@ services:
       URL_HOST: "{{ inventory_hostname }}"
       SECRET_KEY_BASE: {{ scalelite_secret_key }}
       LOADBALANCER_SECRET: {{ scalelite_loadbalancer_key }}
-      DATABASE_URL: "postgresql://{{ scalelite_db_user }}:{{ scalelite_db_pass }}@{{ 'database' if scalelite_db_docker else scalelite_db_host }}:5432/{{ scalelite_db_name }}"
-      REDIS_URL: redis://scalelite_redis
+      DATABASE_URL: "postgresql://{{ scalelite_db_user }}:{{ scalelite_db_pass }}@scalelite-postgresql:5432/{{ scalelite_db_name }}"
+      REDIS_URL: redis://scalelite-redis
       RAILS_LOG_TO_STDOUT: 'true'
 
   scalelite-nginx:
-    #container_name: scalelite-nginx
     image: "{{ image_scalelite }}"
     networks:      
 {% if create_stack_network is defined and create_stack_network|bool==true %}      
@@ -111,7 +108,6 @@ services:
       NGINX_SSL: 'true'
 
   scalelite-poller:
-    #container_name: scalelite-poller
     image: blindsidenetwks/scalelite:{{ blindside_version }}-poller
     networks:      
 {% if create_stack_network is defined and create_stack_network|bool==true %}      
@@ -124,9 +120,7 @@ services:
         condition: on-failure
     environment: *ENVS
 
-
-  scalelite-recording_importer:
-    #container_name: scalelite-recording-importer
+  scalelite-recording-importer:
     image: blindsidenetwks/scalelite:{{ blindside_version }}-recording-importer
     networks:      
 {% if create_stack_network is defined and create_stack_network|bool==true %}      

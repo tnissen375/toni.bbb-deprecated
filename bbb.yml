@@ -57,6 +57,7 @@
     - letsencrypt_email: "jidumailer@gmail.com"    
     - auth_provider_domain: "key.{{ domain }}"
     - nginx_domain: "{{ domain }}"
+    - nginx_stack: "scalelite"
     - scalelite_db_init: "True"
 
 - name: Configure BBB

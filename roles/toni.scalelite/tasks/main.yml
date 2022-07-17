@@ -196,22 +196,13 @@
     src: docker-compose.yml.j2
     dest: "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
 
-- name: restart {{ deploy_name }} stack
-  docker_stack:
-    state: absent
-    prune: yes
-    name: "{{ deploy_name }}"
-    compose:
-      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
+- name: Restart scalelite
+  import_role:
+    name: toni.docker
+    tasks_from: restart_stack
+  vars:
+    stack_name: "{{ nginx_stack }}"
 
-- name: restart {{ deploy_name }} stack
-  docker_stack:
-    state: present
-    prune: yes
-    name: "{{ deploy_name }}"
-    compose:
-      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
- 
 - name: Sleep for 20 seconds and continue
   wait_for:
     timeout: 10
@@ -250,9 +241,9 @@
     hostname: "{{ item.item }}"
     key: "{{ item.stdout }}"
 
-- name: set cert facts 
+- name: set -cert facts 
   when: not existing_certs|bool
-  include_role:
+  import_role:
     name: toni.certificates
     tasks_from: certbot_facts
   vars:
@@ -277,18 +268,9 @@
 #     project_src: "{{ user_path }}/{{ deploy_name }}"
 #     restarted: yes
 
-- name: restart {{ deploy_name }} stack
-  docker_stack:
-    state: absent
-    prune: yes
-    name: "{{ deploy_name }}"
-    compose:
-      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
-
-- name: restart {{ deploy_name }} stack
-  docker_stack:
-    state: present
-    prune: yes
-    name: "{{ deploy_name }}"
-    compose:
-      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
+- name: Restart scalelite
+  import_role:
+    name: toni.docker
+    tasks_from: restart_stack
+  vars:
+    stack_name: "{{ nginx_stack }}"
